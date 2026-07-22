@@ -1,0 +1,37 @@
+{
+  "comment": "GUIDE PURPOSE: Infrastructure & Deployment Standards regarding environment variable segregation, serverless connection lifecycles, and configuration mappings",
+  "guide": "Infrastructure Standards",
+  "version": "1.1.0",
+  "rules": [
+    {
+      "id": "INF001",
+      "title": "Environment Variable Segregation",
+      "requirement": "Do not expose server side database credentials or API secrets to client bundles",
+      "mechanism": "Only prefix client safe parameters with NEXT_PUBLIC_. Keep private parameters not prefixed to ensure they evaluate to undefined in client code"
+    },
+    {
+      "id": "INF002",
+      "title": "Serverless Database Connection Pool Integrity",
+      "requirement": "Never call pool.end() inside serverless function execution scopes",
+      "mechanism": "Allow the Postgres pool to maintain connection clients naturally. Closing connection pools crashes subsequent function runs inside the same recycled execution container"
+    },
+    {
+      "id": "INF003",
+      "title": "Serverless Function Timeouts",
+      "requirement": "Restrict request lifecycle execution from exceeding serverless time bounds (max 10-30s)",
+      "mechanism": "Offload high latency operations (PDF generation, OCR parsing) to background workers or queue processes and return a tracking ID immediately"
+    },
+    {
+      "id": "INF004",
+      "title": "Single Page Application Fallback Redirection",
+      "requirement": "Configure routing redirects to support SPA routers",
+      "mechanism": "Define wildcard path redirects in netlify.toml mapping /* to /index.html with status 200 to support routing hydration"
+    },
+    {
+      "id": "INF005",
+      "title": "Mobile Asset Delivery and Compression",
+      "requirement": "Optimize bandwidth consumption and reduce latency of image loads for mobile device agents",
+      "mechanism": "Configure serverless frameworks or edge content delivery networks (CDNs) to detect automatically mobile User Agent headers, dynamically serving optimized lightweight web formats (such as WebP or AVIF) with appropriate quality scaling"
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "comment": "GUIDE PURPOSE: Performance & Optimization Standards regarding data hydration, prefetching, lazy loading, WebGL lifecycle management, touch gestures, and database selection query limits",
+  "guide": "Performance & Optimization",
+  "version": "1.3.0",
+  "rules": [
+    {
+      "id": "PRF001",
+      "title": "Hybrid Server Prefetching (SSR + SWR)",
+      "requirement": "Eliminate loading flickers and visual shifts on initial page paints",
+      "mechanism": "Fetch statistics and details server side inside page.tsx. Pass this payload as initialData props to the Client Component and set it as useSWR's fallbackData"
+    },
+    {
+      "id": "PRF002",
+      "title": "Server Side In Memory Caching",
+      "requirement": "Cache geocoded coordinates and database summaries to reduce API limits usage",
+      "mechanism": "Implement module level variables (cachedData, lastFetchTime) inside actions.ts to return cached datasets if elapsed time is under a 5 minute TTL"
+    },
+    {
+      "id": "PRF003",
+      "title": "Dynamic Imports & Code Splitting",
+      "requirement": "Avoid loading heavy javascript packages in initial paints",
+      "mechanism": "Utilize dynamic() imports with ssr: false to lazy load canvas rendering or analytics graphing components on demand, displaying placeholders during hydration"
+    },
+    {
+      "id": "PRF004",
+      "title": "Optimized Database Queries Selection",
+      "requirement": "Do not request unnecessary database columns",
+      "mechanism": "Define specific query fields (for example .select('id, name')) instead of wildcard matching to reduce payload size and JSON parsing bottlenecks"
+    },
+    {
+      "id": "PRF005",
+      "title": "WebGL Three.js Hydration & Lifecycle Guard",
+      "requirement": "Prevent state changes from triggering complete teardowns and blank re-initializations of WebGL scenes in React components",
+      "mechanism": "Store canvas interaction callbacks and element properties in stable React useRef closures. This lets the WebGL context initialize exactly once on mount, maintaining stable animation frames"
+    },
+    {
+      "id": "PRF006",
+      "title": "Rotated Coordinate World Transformations",
+      "requirement": "Focus 3D camera targets correctly on points on a rotating globe/mesh",
+      "mechanism": "Before executing camera fly to transitions, transform coordinate vectors dynamically by applying axis angle rotations matching the parent group's current rotation angle"
+    },
+    {
+      "id": "PRF007",
+      "title": "OSM Geocoding Server Fallbacks",
+      "requirement": "Avoid client side geocoding that triggers CORS blockages, adblock failures, or OpenStreetMap rate limits",
+      "mechanism": "Execute geocoding server side. Pre map popular target cities in a static configuration dictionary, and use a shared server side caching lookup for new addresses"
+    },
+    {
+      "id": "PRF008",
+      "title": "Mobile Touch Gesture Conflict Mitigation",
+      "requirement": "Prevent full bleed interactive components (like 3D WebGL canvases) from trapping touch gestures or blocking page scrolling on mobile",
+      "mechanism": "Coordinate overlay cards or sliding drawers to toggle z index or display dynamically during marker selections. Keep sidebar lists hidden during active point interactions to maximize swipe areas"
+    },
+    {
+      "id": "PRF009",
+      "title": "Resource Throttling on Mobile",
+      "requirement": "Conserve mobile battery life and prevent CPU/GPU overheating on small viewports",
+      "mechanism": "Cap window.devicePixelRatio at 2.0 inside rendering setups on mobile. Stop background loops or rotation cycles when components are out of view or overlays are active"
+    },
+    {
+      "id": "PRF010",
+      "title": "Responsive Asset and Image Optimization",
+      "requirement": "Prevent downloading desktop sized high resolution assets over limited mobile cellular connections",
+      "mechanism": "Utilize Next.js next/image or responsive HTML picture/img elements equipped with srcset and sizes attributes. Set explicit width/height or aspect ratio parameters to eliminate layout shifting"
+    },
+    {
+      "id": "PRF011",
+      "title": "High Latency Network Resilience",
+      "requirement": "Optimize user experience and minimize payload sizes on flaky mobile connections",
+      "mechanism": "Debounce input triggered searches by at least 400ms. Implement virtualized scrolling or pagination for lists exceeding 30 items. Fetch updates in the background via SWR, displaying cached local state immediately"
+    },
+    {
+      "id": "PRF012",
+      "title": "Mobile Rendering and Battery Conservation",
+      "requirement": "Reduce CPU/GPU cycles and throttle complex interactive calculations on low power devices",
+      "mechanism": "Disable heavy decorative animations, gradients, or backdrop filters on mobile viewport widths (below 768px). Halt requestAnimationFrame render loops when target components are out of view"
+    }
+  ]
+}

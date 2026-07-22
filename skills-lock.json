@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "skills": {
+    "supabase": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase/SKILL.md",
+      "computedHash": "17a437f3de2371ec43ad8a17d3e858337695efb46ed4af5dd6426f330bb6d032"
+    },
+    "supabase-postgres-best-practices": {
+      "source": "supabase/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
+      "computedHash": "ec56a54fba0e97bee52c7f244ba603bb284bf8d1b739c66a5cc84ec3df709d9d"
+    },
+    "ui-ux-designer": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-ux-designer/SKILL.md",
+      "computedHash": "2f0bcb6b7a81fbd31575b78a3d777d4b43fc8a2f602db46ad027dbbb6adc9a0f"
+    },
+    "web-design-guidelines": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "de44ccda534f5eaf1595f0d2c6403bcaaf96d6f060fa0bb1cdf0037fe1867c6c"
+    }
+  }
+}
