@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 
 export async function GET() {
-  const content = `# AgentGate AI Agent DeFi Risk Middleware for Solana
+  const content = `# SolSentry AI Agent DeFi Risk Engine for Solana
 
-AgentGate is an open source safety middleware, quantitative risk engine, and policy engine for AI agents interacting with Solana DeFi protocols. Before executing any swap, lend, borrow, stake, or perp transaction, agents query AgentGate for a provenance-tagged safety score (with a confidence band), position health, stress-test exposure, and policy guardrail decisions.
+SolSentry is an open source safety middleware, quantitative risk engine, and policy engine for AI agents interacting with Solana DeFi protocols. Before executing any swap, lend, borrow, stake, or perp transaction, agents query SolSentry for a provenance-tagged safety score (with a confidence band), position health, stress-test exposure, and policy guardrail decisions.
 
 ## Scoring model (v3): grounded and honest
 
@@ -11,7 +11,7 @@ Every factor carries its data source, timestamp, and confidence. Live signals ar
 
 ## Model Context Protocol (MCP) Standard Server
 
-AgentGate operates a standard MCP server for Claude, ElizaOS, GPT, Solana Agent Kit, and custom AI agents. Responses include structured content, a model version, and a data-as-of timestamp for reproducibility.
+SolSentry operates a standard MCP server for Claude, ElizaOS, GPT, Solana Agent Kit, and custom AI agents. Responses include structured content, a model version, and a data-as-of timestamp for reproducibility.
 
 ### MCP Tools Available:
 

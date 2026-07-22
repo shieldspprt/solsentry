@@ -20,7 +20,7 @@ import { DEFAULT_POLICY_RULES, RISK_MODEL_VERSION } from '../../../packages/core
 
 const server = new Server(
   {
-    name: 'agentgate-mcp-server',
+    name: 'solsentry-mcp-server',
     version: '3.0.0',
   },
   {

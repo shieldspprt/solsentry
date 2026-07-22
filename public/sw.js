@@ -1,26 +1,20 @@
-const CACHE_NAME = 'agentgate-cache-v3.0.0';
+const CACHE_NAME = 'solsentry-cache-v3.0.0';
 const IMMUTABLE_PRECACHE = ['/manifest.json'];
 
-// ============================================
-// Push notifications — liquidation / risk alerts.
-// The killer PWA feature: deliver an imminent-liquidation warning to the
-// manager's device even when the app is closed. Fires on any web-push message
-// posted to the subscription (see /api/v1/push/subscribe).
-// ============================================
 self.addEventListener('push', (event) => {
   let payload = {};
   try {
     payload = event.data ? event.data.json() : {};
   } catch (e) {
-    payload = { title: 'AgentGate Alert', body: event.data ? event.data.text() : 'Position risk update' };
+    payload = { title: 'SolSentry Alert', body: event.data ? event.data.text() : 'Position risk update' };
   }
 
-  const title = payload.title || 'AgentGate Risk Alert';
+  const title = payload.title || 'SolSentry Risk Alert';
   const options = {
     body: payload.body || 'A monitored position needs attention.',
     icon: '/manifest.json',
     badge: '/manifest.json',
-    tag: payload.tag || 'agentgate-risk',
+    tag: payload.tag || 'solsentry-risk',
     requireInteraction: payload.severity === 'critical',
     data: { url: payload.url || '/dashboard/positions' },
   };

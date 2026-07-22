@@ -6,7 +6,7 @@ import { MobileTabBar } from '../../components/layout/MobileTabBar';
 
 export const metadata = {
   title: 'Model Context Protocol (MCP) Server & AI Tools',
-  description: 'Complete guide, configuration settings, tool registry, and interactive test console for AgentGate MCP server.',
+  description: 'Complete guide, configuration settings, tool registry, and interactive test console for SolSentry MCP server.',
 };
 
 export default function McpPage() {

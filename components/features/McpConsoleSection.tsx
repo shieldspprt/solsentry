@@ -58,7 +58,7 @@ export const McpConsoleSection: React.FC = () => {
   };
 
   return (
-    <Card title="Interactive MCP Test Console" subtitle="Execute JSON RPC 2.0 tool calls against the live AgentGate MCP server">
+    <Card title="Interactive MCP Test Console" subtitle="Execute JSON RPC 2.0 tool calls against the live SolSentry MCP server">
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>

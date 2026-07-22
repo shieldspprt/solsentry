@@ -4,17 +4,18 @@ import { WalletContextProvider } from '../components/layout/WalletContextProvide
 import { ServiceWorkerRegister } from '../components/layout/ServiceWorkerRegister';
 import './globals.css';
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://agentgate.io';
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.io';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'AgentGate | Solana AI Agent Risk Engine & De-Leveraging Middleware',
-    template: '%s | AgentGate Solana',
+    default: 'SolSentry | Solana AI Agent Risk Engine & De-Leveraging Middleware',
+    template: '%s | SolSentry Solana',
   },
   description: 'Real time quantitative risk scoring, position health monitoring, Pyth oracle telemetry, and automated guardrail policy enforcement for Solana AI trading agents.',
   keywords: [
     'Solana',
+    'SolSentry',
     'AI Agents',
     'DeFi Risk Engine',
     'Solana AI Trading',
@@ -28,9 +29,9 @@ export const metadata: Metadata = {
     'De-leveraging',
     'Quantitative Risk Score',
   ],
-  authors: [{ name: 'AgentGate Security Team', url: siteUrl }],
-  creator: 'AgentGate',
-  publisher: 'AgentGate',
+  authors: [{ name: 'SolSentry Security Team', url: siteUrl }],
+  creator: 'SolSentry',
+  publisher: 'SolSentry',
   robots: {
     index: true,
     follow: true,
@@ -53,31 +54,31 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: siteUrl,
-    title: 'AgentGate | Solana AI Agent Risk Engine & De-Leveraging Middleware',
+    title: 'SolSentry | Solana AI Agent Risk Engine & De-Leveraging Middleware',
     description: 'Real time quantitative risk scoring, position liquidation monitoring, and guardrail policy enforcement for Solana AI trading agents.',
-    siteName: 'AgentGate',
+    siteName: 'SolSentry',
     images: [
       {
         url: `${siteUrl}/og-image.png`,
         width: 1200,
         height: 630,
-        alt: 'AgentGate Solana AI Agent Risk Dashboard',
+        alt: 'SolSentry Solana AI Agent Risk Dashboard',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AgentGate | Solana AI Agent Risk Engine',
+    title: 'SolSentry | Solana AI Agent Risk Engine',
     description: 'Real time quantitative risk scoring and de-leveraging middleware for Solana AI trading agents.',
-    site: '@AgentGateSolana',
-    creator: '@AgentGateSolana',
+    site: '@SolSentry',
+    creator: '@SolSentry',
     images: [`${siteUrl}/og-image.png`],
   },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'AgentGate',
+    title: 'SolSentry',
   },
   alternates: {
     canonical: siteUrl,
@@ -100,7 +101,7 @@ export default function RootLayout({
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'AgentGate',
+    name: 'SolSentry',
     applicationCategory: 'FinanceApplication',
     operatingSystem: 'Solana Mainnet Beta',
     offers: {

@@ -14,9 +14,9 @@ export const Sidebar: React.FC = () => {
       <div>
         <Link href="/" className="h-20 px-6 flex items-center gap-3 border-b border-[var(--color-border)] hover:opacity-90 transition-opacity">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400/25 to-blue-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-300 font-black text-xl">
-            A
+            S
           </div>
-          <span className="font-extrabold text-slate-50 text-xl tracking-tight">AgentGate</span>
+          <span className="font-extrabold text-slate-50 text-xl tracking-tight">SolSentry</span>
         </Link>
 
         <nav className="p-4 space-y-1.5">

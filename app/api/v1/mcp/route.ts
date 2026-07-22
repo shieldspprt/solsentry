@@ -6,7 +6,7 @@ import { DEFAULT_POLICY_RULES } from '../../../../packages/core/src/constants';
 
 export async function GET() {
   return NextResponse.json({
-    name: 'agentgate-mcp-server',
+    name: 'solsentry-mcp-server',
     version: '3.0.0',
     protocol_version: '2024-11-05',
     transport: 'HTTP POST & SSE',
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         result: {
           protocolVersion: '2024-11-05',
           capabilities: { tools: {}, resources: {}, prompts: {} },
-          serverInfo: { name: 'agentgate-mcp-server', version: '3.0.0' },
+          serverInfo: { name: 'solsentry-mcp-server', version: '3.0.0' },
         },
       });
     }
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     if (method === 'tools/call') {
       const rawName = params?.name || '';
-      const toolName = rawName.replace(/^agentgate_/, '');
+      const toolName = rawName.replace(/^(solsentry_|agentgate_)/, '');
       const toolArgs = params?.arguments || {};
 
       if (toolName === 'get_protocol_risk' || toolName === 'check_protocol_risk') {

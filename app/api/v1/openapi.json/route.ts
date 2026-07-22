@@ -4,14 +4,14 @@ export async function GET() {
   const openApiSpec = {
     openapi: '3.0.1',
     info: {
-      title: 'AgentGate Solana AI Agent DeFi Risk Middleware API',
+      title: 'SolSentry Solana AI Agent DeFi Risk Middleware API',
       description: 'API for AI agents to check Solana DeFi protocol risk scores, position health, and guardrail policies.',
       version: '1.0.0',
     },
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'AgentGate Active Cluster',
+        description: 'SolSentry Active Cluster',
       },
     ],
     paths: {

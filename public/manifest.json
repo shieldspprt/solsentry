@@ -1,7 +1,7 @@
 {
-  "id": "agentgate-app-v1",
-  "name": "AgentGate AI Agent Risk Middleware",
-  "short_name": "AgentGate",
+  "id": "solsentry-app-v1",
+  "name": "SolSentry AI Agent Risk Engine",
+  "short_name": "SolSentry",
   "description": "Real time quantitative risk scoring, position health monitoring, and guardrail policy enforcement for Solana AI trading agents.",
   "scope": "/",
   "start_url": "/dashboard",
@@ -17,22 +17,10 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
-    },
-    {
-      "src": "/icons/icon-512-maskable.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
     }
   ]
 }

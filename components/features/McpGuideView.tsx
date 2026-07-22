@@ -10,11 +10,11 @@ export const McpGuideView: React.FC = () => {
 
   const claudeConfigJson = `{
   "mcpServers": {
-    "agentgate-solana": {
+    "solsentry-solana": {
       "command": "npx",
-      "args": ["-y", "@agentgate/mcp-server"],
+      "args": ["-y", "@solsentry/mcp-server"],
       "env": {
-        "AGENTGATE_URL": "http://localhost:3000"
+        "SOLSENTRY_URL": "http://localhost:3000"
       }
     }
   }
@@ -22,7 +22,7 @@ export const McpGuideView: React.FC = () => {
 
   const cursorConfigJson = `{
   "mcpServers": {
-    "agentgate": {
+    "solsentry": {
       "url": "http://localhost:3000/api/v1/mcp"
     }
   }
@@ -119,7 +119,7 @@ export const McpGuideView: React.FC = () => {
 
       {activeTab === 'quickstart' && (
         <div className="space-y-8">
-          <Card title="Claude Desktop Integration" subtitle="Add AgentGate risk engine tools directly to your Claude Desktop workspace">
+          <Card title="Claude Desktop Integration" subtitle="Add SolSentry risk engine tools directly to your Claude Desktop workspace">
             <div className="space-y-4 text-sm text-slate-300">
               <p>Add the following configuration snippet to your Claude Desktop config file:</p>
               <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 overflow-x-auto">
@@ -130,7 +130,7 @@ export const McpGuideView: React.FC = () => {
 
           <Card title="Cursor IDE Integration" subtitle="Configure MCP server connection in Cursor IDE settings">
             <div className="space-y-4 text-sm text-slate-300">
-              <p>Add the AgentGate MCP endpoint URL under Cursor Features &gt; MCP Servers:</p>
+              <p>Add the SolSentry MCP endpoint URL under Cursor Features &gt; MCP Servers:</p>
               <pre className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-cyan-300 overflow-x-auto">
                 {cursorConfigJson}
               </pre>

@@ -6,7 +6,7 @@ export default function LandingPage() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'AgentGate',
+    name: 'SolSentry',
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Solana Network',
     description: 'Real time risk scoring, position health monitoring, Model Context Protocol (MCP) server, and guardrail policy enforcement for Solana AI trading agents.',
@@ -28,9 +28,9 @@ export default function LandingPage() {
       <header className="px-8 py-6 max-w-7xl w-full mx-auto flex items-center justify-between">
         <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-extrabold text-xl shadow-sm">
-            A
+            S
           </div>
-          <span className="text-xl font-extrabold text-slate-100 tracking-tight">AgentGate</span>
+          <span className="text-xl font-extrabold text-slate-100 tracking-tight">SolSentry</span>
         </a>
         <div className="flex items-center gap-4">
           <a href="/mcp" className="text-sm font-semibold text-slate-300 hover:text-cyan-300 transition-colors">
@@ -52,7 +52,7 @@ export default function LandingPage() {
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-tight">
           Every AI agent can trade. <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400">
-            AgentGate makes sure they don't get rekt.
+            SolSentry makes sure they don't get rekt.
           </span>
         </h1>
 
@@ -106,7 +106,7 @@ export default function LandingPage() {
       </main>
 
       <footer className="px-8 py-6 border-t border-slate-800/80 max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-        <span>AgentGate Middleware 2026. Open Source MIT License.</span>
+        <span>SolSentry Risk Engine 2026. Open Source MIT License.</span>
         <div className="flex items-center gap-6">
           <a href="/mcp" className="text-cyan-400 hover:underline">MCP Protocol Guide</a>
           <span className="text-cyan-400 font-semibold">PWA Ready &amp; Live</span>

@@ -1,8 +1,8 @@
 {
-  "name": "agentgate",
+  "name": "solsentry",
   "version": "1.0.0",
   "private": true,
-  "description": "AI Agent DeFi Risk Middleware for Solana",
+  "description": "Solana AI Agent Risk Engine & De-Leveraging Middleware",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",

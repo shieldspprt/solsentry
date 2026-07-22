@@ -1,5 +1,5 @@
 -- ============================================
--- AgentGate Database Schema
+-- SolSentry Database Schema
 -- Version: 1.0.0
 -- ============================================
 
@@ -12,7 +12,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email TEXT UNIQUE NOT NULL,
-  api_key TEXT UNIQUE NOT NULL DEFAULT ('ag_' || replace(uuid_generate_v4()::text, '-', '')),
+  api_key TEXT UNIQUE NOT NULL DEFAULT ('ss_' || replace(uuid_generate_v4()::text, '-', '')),
   plan TEXT NOT NULL DEFAULT 'free',
   x402_wallet TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
