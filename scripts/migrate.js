@@ -5,10 +5,15 @@ require('dotenv').config({ path: '.env.local' });
 
 async function runMigration() {
   const password = process.env.SUPABASE_PASSWORD;
-  const user = 'postgres.fptxzwsadfsscyujfgqr';
-  const host = 'aws-0-eu-west-1.pooler.supabase.com';
-  const port = 5432;
-  const database = 'postgres';
+  const user = process.env.SUPABASE_DB_USER;
+  const host = process.env.SUPABASE_DB_HOST;
+  const port = parseInt(process.env.SUPABASE_DB_PORT || '5432', 10);
+  const database = process.env.SUPABASE_DB_NAME || 'postgres';
+
+  if (!user || !host || !password) {
+    console.error('SUPABASE_DB_USER, SUPABASE_DB_HOST, and SUPABASE_PASSWORD must be set in environment');
+    process.exit(1);
+  }
 
   console.log(`Connecting to Postgres at ${host}:${port} as ${user}...`);
 
@@ -18,7 +23,9 @@ async function runMigration() {
     database,
     user,
     password,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.SUPABASE_DB_SSL_REJECT_UNAUTHORIZED === 'false'
+      ? { rejectUnauthorized: false }
+      : { rejectUnauthorized: true }
   });
 
   try {

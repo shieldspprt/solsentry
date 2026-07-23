@@ -1,7 +1,11 @@
 const https = require('https');
 require('dotenv').config({ path: '.env.local' });
 
-const apiKey = process.env.HELIUS_API_KEY || 'd60e2680-f668-43d0-a021-f8d4c2e20b07';
+const apiKey = process.env.HELIUS_API_KEY;
+if (!apiKey) {
+  console.error('HELIUS_API_KEY env var is required. Exiting.');
+  process.exit(1);
+}
 const devnetUrl = `https://devnet.helius-rpc.com/?api-key=${apiKey}`;
 
 console.log('Testing Helius Devnet RPC connection...');

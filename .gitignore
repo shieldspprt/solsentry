@@ -26,3 +26,11 @@ logs
 .DS_Store
 .vscode
 .idea
+.claude
+.dev
+
+# Dev Scratch & Dump Files
+scratch/
+agegate*.md
+devysy/
+

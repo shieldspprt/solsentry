@@ -1,4 +1,5 @@
 import { ActionType, PolicyRules } from '../../../lib/types';
+import { RISK_MODEL_VERSION as VERSION_FROM_LIB } from '../../../lib/version';
 
 export const SUPPORTED_PROTOCOLS = [
   'kamino',
@@ -9,7 +10,21 @@ export const SUPPORTED_PROTOCOLS = [
   'meteora',
   'marinade',
   'jito',
+  'pumpfun',
 ] as const;
+export type SupportedProtocol = typeof SUPPORTED_PROTOCOLS[number];
+
+export const SUPPORTED_ACTIONS = [
+  'swap',
+  'lend',
+  'borrow',
+  'lp',
+  'stake',
+  'perp_long',
+  'perp_short',
+  'buy_bonding_curve',
+] as const;
+export type SupportedAction = typeof SUPPORTED_ACTIONS[number];
 
 export const DEFAULT_RISK_WEIGHTS = {
   audit_weight: 0.35,
@@ -18,9 +33,7 @@ export const DEFAULT_RISK_WEIGHTS = {
   exploit_weight: 0.15,
 };
 
-// Semantic version of the scoring model. Exposed on every risk response so
-// agents can reproduce or pin decisions and detect model changes.
-export const RISK_MODEL_VERSION = '3.0.0';
+export const RISK_MODEL_VERSION = VERSION_FROM_LIB;
 
 // Composite weights per factor (sum = 1.0). Single source of truth used by
 // both the scorer and the documentation/UI so weights never drift apart.
@@ -53,9 +66,9 @@ export const PYTH_FEED_IDS = {
 };
 
 export const DEFAULT_POLICY_RULES: PolicyRules = {
-  max_single_tx_usd: 1000,
-  max_daily_volume_usd: 10000,
-  max_position_size_usd: 5000,
+  max_single_tx_usd: 10000,
+  max_daily_volume_usd: 50000,
+  max_position_size_usd: 25000,
   max_drawdown_pct: 15,
   allowed_protocols: [...SUPPORTED_PROTOCOLS] as unknown as string[],
   blocked_protocols: [],

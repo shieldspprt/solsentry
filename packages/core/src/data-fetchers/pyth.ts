@@ -1,4 +1,5 @@
 import { PYTH_FEED_IDS } from '../constants';
+import { safeFetchWithRetry } from '../../../../lib/safe-fetch';
 
 const priceCache = new Map<string, { price: number; timestamp: number }>();
 const CACHE_TTL_MS = 60 * 1000;
@@ -25,8 +26,8 @@ export async function fetchPythPrice(symbol: keyof typeof PYTH_FEED_IDS): Promis
   }
 
   try {
-    const response = await fetch(`https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`);
-    if (!response.ok) return null;
+    const response = await safeFetchWithRetry(`https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`, { timeoutMs: 2000 });
+    if (!response || !response.ok) return null;
 
     const json = await response.json();
     const parsedData = json?.parsed?.[0];
@@ -71,8 +72,8 @@ export async function fetchOracleHealth(
   if (!feedId) return null;
 
   try {
-    const response = await fetch(`https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`);
-    if (!response.ok) return null;
+    const response = await safeFetchWithRetry(`https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`, { timeoutMs: 2000 });
+    if (!response || !response.ok) return null;
     const json = await response.json();
     const parsed = json?.parsed?.[0];
     if (!parsed) return null;

@@ -11,14 +11,17 @@ export async function POST(request: NextRequest) {
 
     try {
       const supabase = getSupabaseAdmin();
+      const userId = body?.userId && typeof body.userId === 'string' ? body.userId.trim() : null;
+      const agentId = body?.agentId && typeof body.agentId === 'string' ? body.agentId.trim() : null;
+
       await supabase.from('push_subscriptions').upsert(
         {
-          user_id: body?.userId ?? null,
-          agent_id: body?.agentId ?? null,
+          user_id: userId,
+          agent_id: agentId,
           endpoint: sub.endpoint,
           p256dh: sub.keys.p256dh,
           auth: sub.keys.auth,
-          user_agent: request.headers.get('user-agent') || null,
+          user_agent: request.headers.get('user-agent')?.slice(0, 500) || null,
         },
         { onConflict: 'endpoint' }
       );

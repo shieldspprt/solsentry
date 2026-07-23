@@ -62,6 +62,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
 
+  // Don't cache cross-origin requests
+  if (url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith('/api/') || event.request.headers.get('authorization')) {
     return;
   }

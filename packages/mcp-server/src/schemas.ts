@@ -1,27 +1,8 @@
 import { z } from 'zod';
+import { SUPPORTED_PROTOCOLS, SUPPORTED_ACTIONS } from '../../../packages/core/src/constants';
 
-export const ALLOWED_PROTOCOLS = [
-  'kamino',
-  'drift',
-  'jupiter',
-  'orca',
-  'raydium',
-  'meteora',
-  'marinade',
-  'jito',
-  'pumpfun',
-] as const;
-
-export const ALLOWED_ACTIONS = [
-  'swap',
-  'lend',
-  'borrow',
-  'lp',
-  'stake',
-  'perp_long',
-  'perp_short',
-  'buy_bonding_curve',
-] as const;
+export const ALLOWED_PROTOCOLS = SUPPORTED_PROTOCOLS;
+export const ALLOWED_ACTIONS = SUPPORTED_ACTIONS;
 
 export const CheckProtocolRiskSchema = z.object({
   protocolSlug: z.enum(ALLOWED_PROTOCOLS, {

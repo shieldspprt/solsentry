@@ -1,4 +1,6 @@
+import { PublicKey } from '@solana/web3.js';
 import { PositionRecord } from '../../../../lib/types';
+import { safeFetchWithRetry } from '../../../../lib/safe-fetch';
 
 // ============================================
 // On-chain wallet position reader
@@ -52,13 +54,14 @@ export const kaminoAdapter: WalletAdapter = {
   slug: 'kamino',
   read: async (wallet: string): Promise<PositionRecord[]> => {
     const positions: PositionRecord[] = [];
+    const safeWallet = encodeURIComponent(wallet);
     for (const market of KAMINO_MARKETS) {
       try {
-        const res = await fetch(
-          `https://api.kamino.finance/kamino-market/${market}/users/${wallet}/obligations`,
-          { next: { revalidate: 30 } }
+        const res = await safeFetchWithRetry(
+          `https://api.kamino.finance/kamino-market/${market}/users/${safeWallet}/obligations`,
+          { timeoutMs: 4000 }
         );
-        if (!res.ok) continue;
+        if (!res || !res.ok) continue;
         const data = await res.json();
         const obligations: KaminoObligation[] = Array.isArray(data) ? data : data?.obligations || [];
 
@@ -115,9 +118,15 @@ export const driftAdapter: WalletAdapter = {
 
 const ADAPTERS: WalletAdapter[] = [kaminoAdapter, driftAdapter];
 
-// Basic Solana base58 pubkey sanity check (32-44 chars, base58 alphabet).
 export function isValidSolanaAddress(addr: string): boolean {
-  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr);
+  if (typeof addr !== 'string' || addr.length < 32 || addr.length > 44) return false;
+  if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(addr)) return false;
+  try {
+    new PublicKey(addr);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function readWalletPositions(wallet: string): Promise<WalletReadResult> {

@@ -3,9 +3,26 @@ import { computeProtocolRisk } from '../../../../packages/core/src/risk-scorer';
 import { buildGroundedMetrics } from '../../../../packages/core/src/data-fetchers/grounded-metrics';
 import { DEFAULT_POLICY_RULES } from '../../../../packages/core/src/constants';
 import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
-import { ActionType, ProtocolRecord } from '../../../../lib/types';
+import { ActionType, PolicyRules, ProtocolRecord } from '../../../../lib/types';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../../../lib/default-protocols';
+import { auditRiskCheck } from '../../../../lib/audit';
 import { EvaluatePolicySchema } from '../schemas';
+
+async function loadActivePolicy(userId?: string | null, agentId?: string | null): Promise<PolicyRules> {
+  if (!userId) return DEFAULT_POLICY_RULES;
+  try {
+    const supabase = getSupabaseAdmin();
+    let q = supabase.from('policies').select('rules').eq('user_id', userId).eq('is_active', true);
+    if (agentId) q = q.eq('agent_id', agentId);
+    const { data } = await q.maybeSingle();
+    if (data?.rules) {
+      return { ...DEFAULT_POLICY_RULES, ...data.rules };
+    }
+  } catch {
+    // Fallback to defaults
+  }
+  return DEFAULT_POLICY_RULES;
+}
 
 async function resolveProtocol(protocolSlug: string): Promise<ProtocolRecord | null> {
   let record: ProtocolRecord | null = DEFAULT_SOLANA_PROTOCOLS.find((p) => p.slug === protocolSlug) || null;
@@ -21,10 +38,10 @@ async function resolveProtocol(protocolSlug: string): Promise<ProtocolRecord | n
 
 // Same-category protocols that score higher and would pass the size guardrail —
 // so a blocked agent gets a redirect, not just a refusal.
-function findAlternatives(target: ProtocolRecord, amountUsd: number) {
+function findAlternatives(target: ProtocolRecord, amountUsd: number, rules: PolicyRules = DEFAULT_POLICY_RULES) {
   return DEFAULT_SOLANA_PROTOCOLS.filter((p) => p.slug !== target.slug && p.category === target.category)
     .map((p) => ({ p, breakdown: computeProtocolRisk(p) }))
-    .filter(({ breakdown }) => breakdown.composite_risk_score >= DEFAULT_POLICY_RULES.min_risk_score && amountUsd <= DEFAULT_POLICY_RULES.max_single_tx_usd)
+    .filter(({ breakdown }) => breakdown.composite_risk_score >= rules.min_risk_score && amountUsd <= rules.max_single_tx_usd)
     .sort((a, b) => b.breakdown.composite_risk_score - a.breakdown.composite_risk_score)
     .slice(0, 2)
     .map(({ p, breakdown }) => ({
@@ -35,7 +52,8 @@ function findAlternatives(target: ProtocolRecord, amountUsd: number) {
     }));
 }
 
-export async function handleEvaluatePolicy(args: unknown) {
+export async function handleEvaluatePolicy(args: unknown, ctx?: { userId?: string | null; agentId?: string | null }) {
+  const startTime = Date.now();
   const parseResult = EvaluatePolicySchema.safeParse(args);
   if (!parseResult.success) {
     const issue = parseResult.error.issues[0];
@@ -45,6 +63,7 @@ export async function handleEvaluatePolicy(args: unknown) {
   const { action, protocolSlug, amountUsd, currentDailyVolumeUsd, currentDrawdownPct, openPositionsCount } = parseResult.data;
 
   const targetProtocol = await resolveProtocol(protocolSlug);
+  const activeRules = await loadActivePolicy(ctx?.userId, ctx?.agentId);
 
   let riskBreakdown = null;
   if (targetProtocol) {
@@ -58,7 +77,7 @@ export async function handleEvaluatePolicy(args: unknown) {
 
   const protocolRiskScore = riskBreakdown ? riskBreakdown.composite_risk_score : 9.0;
 
-  const result = evaluatePolicyRules(DEFAULT_POLICY_RULES, {
+  const result = evaluatePolicyRules(activeRules, {
     action: action as ActionType,
     protocolSlug,
     amountUsd,
@@ -72,6 +91,19 @@ export async function handleEvaluatePolicy(args: unknown) {
 
   const failClosedOverride = Boolean(riskBreakdown && riskBreakdown.composite_risk_score < 5.0);
   const allowed = result.allowed && !failClosedOverride;
+
+  void auditRiskCheck({
+    user_id: ctx?.userId,
+    agent_id: ctx?.agentId,
+    protocol_slug: protocolSlug,
+    action,
+    amount_usd: amountUsd,
+    risk_score: protocolRiskScore,
+    risk_level: riskBreakdown?.risk_tier || 'medium',
+    recommendation: allowed ? 'PROCEED' : 'BLOCK',
+    risk_factors: { violations: result.violations, warnings: result.warnings },
+    response_time_ms: Date.now() - startTime,
+  });
 
   return {
     isError: false,

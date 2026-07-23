@@ -100,23 +100,23 @@ describe('Policy Guardrail Engine', () => {
     const result = evaluatePolicyRules(DEFAULT_POLICY_RULES, {
       action: 'swap',
       protocolSlug: 'jupiter',
-      amountUsd: 5000,
+      amountUsd: 15000,
     });
 
     expect(result.allowed).toBe(false);
     expect(result.decision).toBe('block');
     expect(result.violations.length).toBeGreaterThan(0);
     // maxAllowedUsd tells the agent how to right-size instead of retrying.
-    expect(result.maxAllowedUsd).toBe(1000);
+    expect(result.maxAllowedUsd).toBe(10000);
   });
 
   it('should shrink maxAllowedUsd as daily volume is consumed', () => {
     const max = computeMaxAllowedUsd(DEFAULT_POLICY_RULES, {
       action: 'swap',
       protocolSlug: 'jupiter',
-      currentDailyVolumeUsd: 9500,
+      currentDailyVolumeUsd: 49500,
     });
-    // remaining daily = 500, below single-tx cap of 1000
+    // remaining daily = 500, below single-tx cap of 10000
     expect(max).toBe(500);
   });
 

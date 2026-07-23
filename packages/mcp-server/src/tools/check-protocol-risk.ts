@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { ProtocolRecord } from '../../../../lib/types';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../../../lib/default-protocols';
 import { computeTrend, recordSnapshot } from '../../../../lib/snapshots';
+import { getCached, setCached } from '../../../../lib/cache';
 import { CheckProtocolRiskSchema } from '../schemas';
 
 export async function handleCheckProtocolRisk(args: unknown) {
@@ -46,8 +47,14 @@ export async function handleCheckProtocolRisk(args: unknown) {
   // DeFiLlama fees) with per-factor provenance, then score.
   let tvlUsd: number | null = protocolRecord.tvl_usd;
   let breakdown;
+  const cacheKey = `grounded:${protocolSlug}`;
+
   try {
-    const grounded = await buildGroundedMetrics(protocolRecord);
+    let grounded = getCached<any>(cacheKey);
+    if (!grounded) {
+      grounded = await buildGroundedMetrics(protocolRecord);
+      setCached(cacheKey, grounded, 5 * 60 * 1000); // 5 min TTL
+    }
     tvlUsd = grounded.tvl_usd ?? protocolRecord.tvl_usd;
     breakdown = computeProtocolRisk(
       { ...protocolRecord, institutional_metrics: grounded.metrics },

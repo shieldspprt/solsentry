@@ -1,3 +1,5 @@
+import { safeFetchWithRetry } from '../../../../lib/safe-fetch';
+
 function getHeliusRpcUrl(): string | null {
   return process.env.NEXT_PUBLIC_HELIUS_RPC_URL || process.env.HELIUS_RPC_URL || null;
 }
@@ -34,12 +36,13 @@ export async function fetchTokenHolderConcentration(
 
   try {
     const rpc = async (method: string, params: unknown[]) => {
-      const res = await fetch(rpcUrl, {
+      const res = await safeFetchWithRetry(rpcUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-        next: { revalidate: 300 },
+        timeoutMs: 3000,
       });
+      if (!res) return null;
       const json = await res.json();
       return json?.result;
     };

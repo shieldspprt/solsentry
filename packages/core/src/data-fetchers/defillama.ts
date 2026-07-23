@@ -1,3 +1,5 @@
+import { safeFetchWithRetry } from '../../../../lib/safe-fetch';
+
 // Live economic telemetry from DeFiLlama public APIs (no key required).
 
 export interface ProtocolFeesData {
@@ -23,10 +25,8 @@ const FEE_SLUGS: Record<string, string> = {
 export async function fetchProtocolFees(protocolSlug: string): Promise<ProtocolFeesData | null> {
   const feeSlug = FEE_SLUGS[protocolSlug] || protocolSlug;
   try {
-    const res = await fetch(`https://api.llama.fi/summary/fees/${feeSlug}?dataType=dailyFees`, {
-      next: { revalidate: 900 },
-    });
-    if (!res.ok) return null;
+    const res = await safeFetchWithRetry(`https://api.llama.fi/summary/fees/${feeSlug}?dataType=dailyFees`, { timeoutMs: 5000 });
+    if (!res || !res.ok) return null;
     const data = await res.json();
 
     const total24h = Number(data?.total24h ?? data?.totalDataChart?.slice(-1)?.[0]?.[1] ?? NaN);
@@ -65,8 +65,8 @@ const TVL_SLUGS: Record<string, string> = {
 export async function fetchProtocolTvl(protocolSlug: string): Promise<ProtocolTvlData | null> {
   const tvlSlug = TVL_SLUGS[protocolSlug] || protocolSlug;
   try {
-    const res = await fetch(`https://api.llama.fi/protocol/${tvlSlug}`, { next: { revalidate: 900 } });
-    if (!res.ok) return null;
+    const res = await safeFetchWithRetry(`https://api.llama.fi/protocol/${tvlSlug}`, { timeoutMs: 5000 });
+    if (!res || !res.ok) return null;
     const data = await res.json();
     const tvl = data?.tvl?.[data.tvl.length - 1]?.totalLiquidityUSD;
     return {
