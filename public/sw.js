@@ -24,7 +24,15 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const target = (event.notification.data && event.notification.data.url) || '/dashboard/positions';
+  let target = (event.notification.data && event.notification.data.url) || '/dashboard/positions';
+  try {
+    const parsed = new URL(target, self.location.origin);
+    if (parsed.origin !== self.location.origin || !target.startsWith('/')) {
+      target = '/dashboard/positions';
+    }
+  } catch {
+    target = '/dashboard/positions';
+  }
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientsArr) => {
       const existing = clientsArr.find((c) => c.url.includes(target));

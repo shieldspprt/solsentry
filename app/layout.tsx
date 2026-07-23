@@ -116,10 +116,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-        />
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       </head>
       <body className="bg-[var(--color-bg)] text-slate-100 min-h-screen font-sans antialiased">
         <WalletContextProvider>

@@ -1,12 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { computeProtocolRisk } from '../../../../packages/core/src/risk-scorer';
 import { buildGroundedMetrics } from '../../../../packages/core/src/data-fetchers/grounded-metrics';
 import { recordSnapshot } from '../../../../lib/snapshots';
 import { SUPPORTED_PROTOCOLS } from '../../../../packages/core/src/constants';
+import { logger } from '../../../../lib/logger';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-solsentry-user-id');
+    const cronSecretHeader = request.headers.get('x-solsentry-cron-secret');
+    const expectedCronSecret = process.env.SOLSENTRY_CRON_SECRET;
+
+    const isAuthorizedCron = expectedCronSecret && cronSecretHeader === expectedCronSecret;
+    if (!userId && !isAuthorizedCron && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { error: 'unauthorized', message: 'Authentication or valid cron secret required to trigger sync.' },
+        { status: 401 }
+      );
+    }
+
     const supabase = getSupabaseAdmin();
     const synced: string[] = [];
 
@@ -34,10 +47,12 @@ export async function POST() {
         // Write a time-series snapshot so trend deltas accumulate over time.
         await recordSnapshot(slug, breakdown, merged.tvl_usd);
         synced.push(slug);
-      } catch {
-        // Continue with next protocol if a source fails
+      } catch (err: any) {
+        logger.warn('protocol_sync_partial_failure', { slug, error: err.message });
       }
     }
+
+    logger.info('protocols_synced', { count: synced.length, protocols: synced });
 
     return NextResponse.json({
       success: true,
@@ -45,7 +60,8 @@ export async function POST() {
       syncedProtocols: synced,
       timestamp: new Date().toISOString(),
     });
-  } catch {
-    return NextResponse.json({ error: 'Failed to sync live protocol telemetry' }, { status: 500 });
+  } catch (err: any) {
+    logger.error('protocol_sync_failed', { error: err.message });
+    return NextResponse.json({ error: 'internal_error', message: 'Failed to sync live protocol telemetry' }, { status: 500 });
   }
 }

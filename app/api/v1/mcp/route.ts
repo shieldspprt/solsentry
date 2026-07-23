@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TOOL_DEFINITIONS, dispatchToolCall } from '../../../../packages/mcp-server/src/tool-registry';
+import { logger } from '../../../../lib/logger';
 
 export async function GET() {
   return NextResponse.json({
@@ -59,15 +60,17 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (err: any) {
+        logger.warn('mcp_tool_call_error', { tool: rawName, error: err.message });
         return NextResponse.json(
           { jsonrpc: '2.0', id, error: { code: -32601, message: err.message || `Tool '${rawName}' failed` } },
-          { status: 404 }
+          { status: 400 }
         );
       }
     }
 
     return NextResponse.json({ jsonrpc: '2.0', id, error: { code: -32601, message: `Method '${method}' not supported` } }, { status: 400 });
-  } catch (err) {
-    return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32603, message: 'Internal error', details: String(err) } }, { status: 500 });
+  } catch (err: any) {
+    logger.error('mcp_internal_error', { error: err?.message || String(err) });
+    return NextResponse.json({ jsonrpc: '2.0', id: null, error: { code: -32603, message: 'Internal MCP execution error' } }, { status: 500 });
   }
 }

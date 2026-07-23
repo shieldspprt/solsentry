@@ -6,6 +6,8 @@ import { sanitizeText } from '../../../../lib/validation';
 import { computeTrend, recordSnapshot } from '../../../../lib/snapshots';
 import { ProtocolRecord } from '../../../../lib/types';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../../../lib/default-protocols';
+import { SUPPORTED_PROTOCOLS } from '../../../../packages/core/src/constants';
+import { logger } from '../../../../lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +17,14 @@ export async function POST(request: NextRequest) {
 
     if (!protocolSlug) {
       return NextResponse.json(
-        { error: 'protocolSlug parameter is required' },
+        { error: 'invalid_input', message: 'protocolSlug parameter is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!SUPPORTED_PROTOCOLS.includes(protocolSlug as any)) {
+      return NextResponse.json(
+        { error: 'unsupported_protocol', message: `Protocol '${protocolSlug}' is not in the registered whitelist.` },
         { status: 400 }
       );
     }
@@ -26,13 +35,13 @@ export async function POST(request: NextRequest) {
       const supabase = getSupabaseAdmin();
       const { data } = await supabase.from('protocols').select('*').eq('slug', protocolSlug).maybeSingle();
       if (data) protocol = data as unknown as ProtocolRecord;
-    } catch {
-      // fallback to default registry
+    } catch (err: any) {
+      logger.warn('supabase_protocol_fetch_fallback', { slug: protocolSlug, error: err.message });
     }
 
     if (!protocol) {
       return NextResponse.json(
-        { error: `Protocol '${protocolSlug}' not found` },
+        { error: 'not_found', message: `Protocol '${protocolSlug}' not found` },
         { status: 404 }
       );
     }
@@ -44,7 +53,8 @@ export async function POST(request: NextRequest) {
       const grounded = await buildGroundedMetrics(protocol);
       tvlUsd = grounded.tvl_usd ?? protocol.tvl_usd;
       breakdown = computeProtocolRisk({ ...protocol, institutional_metrics: grounded.metrics }, { provenance: grounded.provenance });
-    } catch {
+    } catch (err: any) {
+      logger.warn('grounded_metrics_fetch_failed', { slug: protocolSlug, error: err.message });
       breakdown = computeProtocolRisk(protocol);
     }
 
@@ -89,9 +99,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 200, headers }
     );
-  } catch {
+  } catch (err: any) {
+    logger.error('risk_check_failed', { error: err.message });
     return NextResponse.json(
-      { error: 'Internal server error processing risk check request' },
+      { error: 'internal_error', message: 'Internal server error processing risk check request' },
       { status: 500 }
     );
   }

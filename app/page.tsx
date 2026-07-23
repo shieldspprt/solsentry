@@ -3,6 +3,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
 export default function LandingPage() {
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.io';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -15,16 +16,13 @@ export default function LandingPage() {
       price: '0',
       priceCurrency: 'USD',
     },
-    url: 'http://localhost:3000',
+    url: siteUrl,
     softwareRequirements: 'Model Context Protocol (MCP) or REST API',
   };
 
   return (
     <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col justify-between">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
       <header className="px-8 py-6 max-w-7xl w-full mx-auto flex items-center justify-between">
         <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-extrabold text-xl shadow-sm">

@@ -2,9 +2,6 @@
 
 // Client side helper to enable web push liquidation alerts.
 
-const DEFAULT_VAPID_PUBLIC_KEY =
-  'BDLeFCgHDJUFzdtcJblKYUQyG78qOST1pYQMiYmaGP--Oqbk8Z3l99xmvvbFT4Nx-F85mEuft0o7b3_E-GeKNdc';
-
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -23,7 +20,7 @@ export async function enablePushAlerts(opts: { userId?: string; agentId?: string
     return { ok: false, reason: 'unsupported' };
   }
 
-  const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || DEFAULT_VAPID_PUBLIC_KEY;
+  const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
   if (!vapidPublic) return { ok: false, reason: 'no_vapid' };
 
   try {

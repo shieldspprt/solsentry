@@ -206,6 +206,27 @@ export const TOOL_HANDLERS: Record<string, (args: any) => Promise<any>> = {
   'get_imminent_liquidations': handleGetPositionHealth,
 };
 
+import {
+  CheckProtocolRiskSchema,
+  EvaluatePolicySchema,
+  PreflightSchema,
+  StressTestSchema,
+  GetPositionHealthSchema,
+  GetBusinessRatiosSchema,
+} from './schemas';
+
+export const SCHEMA_MAP: Record<string, any> = {
+  'check_protocol_risk': CheckProtocolRiskSchema,
+  'get_protocol_risk': CheckProtocolRiskSchema,
+  'evaluate_policy': EvaluatePolicySchema,
+  'check_policy_rules': EvaluatePolicySchema,
+  'preflight': PreflightSchema,
+  'stress_test': StressTestSchema,
+  'get_position_health': GetPositionHealthSchema,
+  'get_imminent_liquidations': GetPositionHealthSchema,
+  'get_business_ratios': GetBusinessRatiosSchema,
+};
+
 export async function dispatchToolCall(rawName: string, toolArgs: any): Promise<any> {
   const normalized = rawName
     .replace(/^(solsentry_|agentgate_)/, '')
@@ -215,5 +236,17 @@ export async function dispatchToolCall(rawName: string, toolArgs: any): Promise<
   if (!handler) {
     throw new Error(`Tool '${rawName}' not found in registry`);
   }
-  return await handler(toolArgs);
+
+  const schema = SCHEMA_MAP[normalized];
+  let validatedArgs = toolArgs;
+  if (schema) {
+    const parseRes = schema.safeParse(toolArgs || {});
+    if (!parseRes.success) {
+      const errMsgs = parseRes.error.errors.map((e: any) => e.message).join('; ');
+      throw new Error(`Invalid arguments for tool '${rawName}': ${errMsgs}`);
+    }
+    validatedArgs = parseRes.data;
+  }
+
+  return await handler(validatedArgs);
 }
