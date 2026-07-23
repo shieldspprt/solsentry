@@ -565,6 +565,18 @@ export function computeProtocolRisk(
     };
   }
 
+  const liveSourcesCount = factors.filter((f) => f.source !== 'model_default').length;
+  const totalSourcesCount = factors.length;
+  const isReliable = liveSourcesCount >= 3;
+  const dataQuality = {
+    live_sources_count: liveSourcesCount,
+    total_sources_count: totalSourcesCount,
+    is_reliable: isReliable,
+    warning: !isReliable
+      ? 'Low live data coverage: score is partially derived from static model defaults. Use caution for large positions.'
+      : undefined,
+  };
+
   const byKey = (k: FactorKey) => factors.find((f) => f.key === k)!.score;
 
   return {
@@ -591,5 +603,6 @@ export function computeProtocolRisk(
     trend: opts.trend ?? null,
     model_version: RISK_MODEL_VERSION,
     data_as_of: nowIso,
+    data_quality: dataQuality,
   };
 }

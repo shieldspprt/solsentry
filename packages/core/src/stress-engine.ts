@@ -13,10 +13,16 @@ export const DEFAULT_SCENARIOS: StressScenario[] = [
   { label: 'Black swan (-35%)', price_shock_pct: -35 },
 ];
 
+export function getAssetDailyVolPct(assetSymbol?: string): number {
+  if (!assetSymbol) return 6.0;
+  const sym = assetSymbol.toUpperCase();
+  if (sym.includes('USDC') || sym.includes('USDT') || sym.includes('USD')) return 0.5;
+  if (sym.includes('SOL') || sym.includes('BTC') || sym.includes('ETH')) return 6.0;
+  if (sym.includes('KMNO') || sym.includes('DRIFT') || sym.includes('JUP') || sym.includes('ORCA') || sym.includes('RAY')) return 15.0;
+  return 40.0;
+}
+
 const TARGET_HEALTH_FACTOR = 1.5;
-// Assumed 1-sigma daily volatility for SOL-correlated majors, used only for a
-// clearly-labelled time-to-liquidation *estimate* — not a precise forecast.
-const ASSUMED_DAILY_VOL_PCT = 6;
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -88,9 +94,9 @@ export function stressPosition(position: PositionRecord, shockPct: number): Posi
     liquidates = long ? stressedPrice <= liquidation_price : stressedPrice >= liquidation_price;
     if (stressedHf != null && stressedHf <= 1.0) liquidates = true;
 
-    // Rough time-to-liquidation under a random-walk assumption: how many
-    // 1-sigma hourly moves fit inside the current buffer.
-    const hourlySigma = ASSUMED_DAILY_VOL_PCT / Math.sqrt(24);
+    // Time-to-liquidation under asset-specific volatility tier
+    const dailyVolPct = getAssetDailyVolPct(asset);
+    const hourlySigma = dailyVolPct / Math.sqrt(24);
     if (priceBufferPct != null && hourlySigma > 0) {
       hoursToLiq = Math.round((priceBufferPct / hourlySigma) * 10) / 10;
     }

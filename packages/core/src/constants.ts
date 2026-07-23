@@ -26,13 +26,6 @@ export const SUPPORTED_ACTIONS = [
 ] as const;
 export type SupportedAction = typeof SUPPORTED_ACTIONS[number];
 
-export const DEFAULT_RISK_WEIGHTS = {
-  audit_weight: 0.35,
-  tvl_weight: 0.25,
-  oracle_weight: 0.25,
-  exploit_weight: 0.15,
-};
-
 export const RISK_MODEL_VERSION = VERSION_FROM_LIB;
 
 // Composite weights per factor (sum = 1.0). Single source of truth used by
@@ -63,6 +56,10 @@ export const PYTH_FEED_IDS = {
   USDC_USD: 'eaa02011d748f773182c9f3d84a90075d5027a6100e3fe13eed7e96b70d9a64e',
   BTC_USD: 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
   ETH_USD: 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+  JITOSOL_USD: '67be9f519b95cf24338801051f9a808eff0a57f23b3c38096245d65c3453b3b4',
+  MSOL_USD: 'c2574245143e16c3b6ae3164906109fe16a75a7c36a445d4c82c21950e304b50',
+  BSOL_USD: '06085a8501257470ec08d0a79a6156f7091924559c5d0ef4ef83c3ec5bfb7eb0',
+  USDT_USD: '2b89b9dc8fdf9f34709a5b106b272f08f39c258a6daf355d2993630739090484',
 };
 
 export const DEFAULT_POLICY_RULES: PolicyRules = {

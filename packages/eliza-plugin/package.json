@@ -1,0 +1,16 @@
+{
+  "name": "@solsentry/eliza-plugin",
+  "version": "3.0.0",
+  "description": "Official SolSentry Quantitative Risk & Guardrail Plugin for ElizaOS (ai16z) AI Agents",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@solsentry/sdk": "3.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

@@ -212,6 +212,13 @@ export interface MetricTrend {
   snapshots_available: number;
 }
 
+export interface DataQualityIndicator {
+  live_sources_count: number;
+  total_sources_count: number;
+  is_reliable: boolean;
+  warning?: string;
+}
+
 export interface InstitutionalFactorsBreakdown {
   audit_governance_score: number;
   liquidation_rekt_score: number;
@@ -228,8 +235,6 @@ export interface InstitutionalFactorsBreakdown {
   quant_metrics: InstitutionalRiskMetrics;
 
   // --- Decision-grade additions (optional for backward compatibility) ---
-  // Explicit direction: identical to composite_risk_score but named to remove
-  // the "higher risk score = safer" ambiguity for downstream agents.
   safety_score?: number;
   score_direction?: 'higher_is_safer';
   factors?: FactorScore[];
@@ -239,6 +244,7 @@ export interface InstitutionalFactorsBreakdown {
   trend?: MetricTrend | null;
   model_version?: string;
   data_as_of?: string;
+  data_quality?: DataQualityIndicator;
 }
 
 export interface RiskCheckRecord {
