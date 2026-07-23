@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { TOOL_DEFINITIONS, dispatchToolCall } from '../tool-registry';
 
 describe('MCP Tool Registry & Canonical Dispatcher', () => {
-  it('should expose all 7 canonical tools with solsentry_ prefix', () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(7);
+  it('should expose all 8 canonical tools with solsentry_ prefix', () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(8);
     for (const tool of TOOL_DEFINITIONS) {
       expect(tool.name).toMatch(/^solsentry_/);
     }

@@ -190,7 +190,26 @@ export const TOOL_DEFINITIONS = [
       required: ['protocolSlug'],
     },
   },
+  {
+    name: 'solsentry_simulate_transaction',
+    description:
+      'Simulates a raw serialized Solana transaction, extracting pre vs post token balance deltas, Compute Units consumed, and scanning for drainer instruction patterns. Example: {"transaction": "<base58_tx_string>"}.',
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transaction: { type: 'string', description: 'Serialized Solana transaction payload' },
+        encoding: { type: 'string', enum: ['base58', 'base64'] },
+      },
+      required: ['transaction'],
+    },
+  },
 ];
+
+import { simulateSolanaTransaction } from '../../core/src/simulation/tx-simulator';
 
 export const TOOL_HANDLERS: Record<string, (args: any) => Promise<any>> = {
   'check_protocol_risk': handleCheckProtocolRisk,
@@ -200,10 +219,12 @@ export const TOOL_HANDLERS: Record<string, (args: any) => Promise<any>> = {
   'stress_test': handleStressTest,
   'get_position_health': handleGetPositionHealth,
   'get_business_ratios': handleGetBusinessRatios,
+  'simulate_transaction': (args: any) => simulateSolanaTransaction(args.transaction, args.encoding),
   // Aliases
   'get_protocol_risk': handleCheckProtocolRisk,
   'check_policy_rules': handleEvaluatePolicy,
   'get_imminent_liquidations': handleGetPositionHealth,
+  'simulate_tx': (args: any) => simulateSolanaTransaction(args.transaction, args.encoding),
 };
 
 import {
@@ -213,6 +234,7 @@ import {
   StressTestSchema,
   GetPositionHealthSchema,
   GetBusinessRatiosSchema,
+  SimulateTransactionSchema,
 } from './schemas';
 
 export const SCHEMA_MAP: Record<string, any> = {
@@ -225,6 +247,8 @@ export const SCHEMA_MAP: Record<string, any> = {
   'get_position_health': GetPositionHealthSchema,
   'get_imminent_liquidations': GetPositionHealthSchema,
   'get_business_ratios': GetBusinessRatiosSchema,
+  'simulate_transaction': SimulateTransactionSchema,
+  'simulate_tx': SimulateTransactionSchema,
 };
 
 export async function dispatchToolCall(rawName: string, toolArgs: any): Promise<any> {

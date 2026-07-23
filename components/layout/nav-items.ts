@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'agents', label: 'Agents', href: '/dashboard/agents' },
   { key: 'alerts', label: 'Alerts', href: '/dashboard/alerts' },
   { key: 'mcp', label: 'MCP Server', href: '/mcp' },
+  { key: 'simulator' as any, label: 'Tx Simulator', href: '/dashboard/simulator' },
   { key: 'settings', label: 'Settings', href: '/dashboard/settings' },
 ];
 

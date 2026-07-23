@@ -67,3 +67,8 @@ export const GetBusinessRatiosSchema = z.object({
     message: 'Invalid protocolSlug. Must be a registered Solana protocol.',
   }),
 });
+
+export const SimulateTransactionSchema = z.object({
+  transaction: z.string().min(1, { message: 'Serialized transaction payload is required.' }),
+  encoding: z.enum(['base58', 'base64']).optional().default('base58'),
+});
