@@ -1,34 +1,34 @@
 import { NextResponse } from 'next/server';
+import { APP_VERSION } from '../../../../lib/version';
 
 export async function GET() {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const openApiSpec = {
     openapi: '3.0.1',
     info: {
       title: 'SolSentry Solana AI Agent DeFi Risk Middleware API',
-      description: 'API for AI agents to check Solana DeFi protocol risk scores, position health, and guardrail policies.',
-      version: '1.0.0',
+      description: 'Institutional-grade quantitative safety engine, policy guardrails, and position monitoring middleware for Solana AI agents.',
+      version: APP_VERSION,
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'SolSentry Active Cluster',
+        url: baseUrl,
+        description: 'SolSentry Active Node',
       },
     ],
     paths: {
       '/api/v1/protocols': {
         get: {
-          summary: 'List supported Solana DeFi protocols and risk scores',
+          summary: 'List monitored Solana DeFi protocols and composite safety scores',
           operationId: 'getProtocolsList',
           responses: {
-            '200': {
-              description: 'Successful response containing protocol risk scores and TVL metrics',
-            },
+            '200': { description: 'Protocol registry with risk scores, TVL, and bot density.' },
           },
         },
       },
       '/api/v1/risk-check': {
         post: {
-          summary: 'Perform pre flight risk check for a target protocol',
+          summary: 'Perform pre-trade risk evaluation for a target protocol',
           operationId: 'checkProtocolRisk',
           requestBody: {
             required: true,
@@ -37,9 +37,9 @@ export async function GET() {
                 schema: {
                   type: 'object',
                   properties: {
-                    protocolSlug: { type: 'string', example: 'kamino' },
-                    action: { type: 'string', example: 'lend' },
-                    amountUsd: { type: 'number', example: 500 },
+                    protocolSlug: { type: 'string', example: 'jupiter' },
+                    action: { type: 'string', example: 'swap' },
+                    amountUsd: { type: 'number', example: 5000 },
                   },
                   required: ['protocolSlug'],
                 },
@@ -47,9 +47,28 @@ export async function GET() {
             },
           },
           responses: {
-            '200': {
-              description: 'Risk evaluation result and recommendation',
-            },
+            '200': { description: 'Risk decision breakdown and recommendation.' },
+          },
+        },
+      },
+      '/api/v1/positions/read': {
+        get: {
+          summary: 'Read open positions and health factors for a Solana wallet',
+          operationId: 'readPositions',
+          parameters: [
+            { name: 'wallet', in: 'query', required: true, schema: { type: 'string' } },
+          ],
+          responses: {
+            '200': { description: 'Wallet obligations and health factors.' },
+          },
+        },
+      },
+      '/api/v1/mcp': {
+        post: {
+          summary: 'JSON-RPC 2.0 tool execution endpoint for MCP agents',
+          operationId: 'mcpToolCall',
+          responses: {
+            '200': { description: 'JSON-RPC 2.0 response with tool output.' },
           },
         },
       },
@@ -59,7 +78,6 @@ export async function GET() {
   return NextResponse.json(openApiSpec, {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
       'Cache-Control': 'public, max-age=3600',
     },
   });

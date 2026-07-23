@@ -15,26 +15,26 @@ SolSentry operates a standard MCP server for Claude, ElizaOS, GPT, Solana Agent 
 
 ### MCP Tools Available:
 
-1. preflight(action, protocolSlug, amountUsd, [portfolio state])
+1. solsentry_preflight(action, protocolSlug, amountUsd, [portfolio state])
 FIRST call before any transaction. Combines risk + policy into a single PROCEED / DO_NOT_PROCEED verdict with reasons, maxAllowedUsd (largest amount that would pass), top risk drivers, trend, and safer alternatives.
 
-2. check_protocol_risk(protocolSlug)
+2. solsentry_check_protocol_risk(protocolSlug)
 Provenance-tagged safety score (0..10, higher = safer) with a confidence band, per-factor breakdown and sources, top drivers, what-would-flip conditions, 7d/30d trend, and an automated agent decision.
 
-3. evaluate_policy(action, protocolSlug, amountUsd, [currentDailyVolumeUsd, currentDrawdownPct, openPositionsCount])
+3. solsentry_evaluate_policy(action, protocolSlug, amountUsd, [currentDailyVolumeUsd, currentDrawdownPct, openPositionsCount])
 Checks single-tx caps, daily volume, drawdown, position count, and risk floor. Returns maxAllowedUsd and same-category alternatives when blocked. Pass portfolio state so volume/drawdown/position limits bind.
 
-4. stress_test(priceShockPct?, walletAddress?, agentId?, protocolSlug?)
+4. solsentry_stress_test(priceShockPct?, walletAddress?, agentId?, protocolSlug?)
 Simulates an adverse price move (default suite -10/-20/-35). Pass walletAddress to stress REAL on-chain positions. Reports which positions liquidate, capital at risk, cascade exposure, projected portfolio health, time-to-liquidation estimates, and the collateral needed to restore a safe health factor.
 
-5. get_position_health(walletAddress?, agentId?, protocolSlug?)
+5. solsentry_get_position_health(walletAddress?, agentId?, protocolSlug?)
 Pass walletAddress to read REAL on-chain positions with LIVE health factors (Kamino lending obligations today; Drift pending). Returns per-position health factor, imminent-liquidation flags, and recommended actions. Without a wallet it reads stored/sample positions. Also available over REST: POST /api/v1/positions/read {"walletAddress"}.
 
-6. get_protocol_list() / get_business_ratios(protocolSlug)
+6. solsentry_get_protocol_list() / solsentry_get_business_ratios(protocolSlug)
 Protocol registry with ratings, and per-protocol capital efficiency, fee/TVL, utilization, and web-community telemetry.
 
-## Supported Solana DeFi Protocols
-Kamino Finance (lending), Drift Protocol (perps), Jupiter (dex), Orca (dex), Raydium (dex), Meteora (dex), Marinade Finance (staking), Jito (staking).
+## Supported Solana DeFi Protocols & Launchpads
+Kamino Finance (lending), Drift Protocol (perps), Jupiter (dex), Orca (dex), Raydium (dex), Meteora (dex), Marinade Finance (staking), Jito (staking), Pumpfun (launchpad).
 `;
 
   return new NextResponse(content, {

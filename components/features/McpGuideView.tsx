@@ -10,9 +10,9 @@ export const McpGuideView: React.FC = () => {
 
   const claudeConfigJson = `{
   "mcpServers": {
-    "solsentry-solana": {
-      "command": "npx",
-      "args": ["-y", "@solsentry/mcp-server"],
+    "solsentry": {
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
       "env": {
         "SOLSENTRY_URL": "http://localhost:3000"
       }
@@ -33,9 +33,9 @@ export const McpGuideView: React.FC = () => {
   "id": 101,
   "method": "tools/call",
   "params": {
-    "name": "get_protocol_risk",
+    "name": "solsentry_check_protocol_risk",
     "arguments": {
-      "slug": "jupiter"
+      "protocolSlug": "jupiter"
     }
   }
 }`;
@@ -47,7 +47,7 @@ export const McpGuideView: React.FC = () => {
     "content": [
       {
         "type": "text",
-        "text": "{\\"protocol\\":\\"jupiter\\",\\"composite_risk_score\\":9.8,\\"risk_tier\\":\\"low\\",\\"recommendation\\":\\"TAKE_POSITION\\",\\"confidence\\":95}"
+        "text": "{\\"protocol\\":\\"Jupiter\\",\\"safetyScore\\":9.8,\\"riskTier\\":\\"low\\",\\"actionRecommendation\\":\\"proceed\\"}"
       }
     ]
   }
@@ -145,29 +145,29 @@ export const McpGuideView: React.FC = () => {
             <div className="space-y-6 text-sm">
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-cyan-300 text-base">get_protocol_risk</span>
+                  <span className="font-mono font-bold text-cyan-300 text-base">solsentry_check_protocol_risk</span>
                   <Badge variant="low">Read Only</Badge>
                 </div>
                 <p className="text-slate-300">
                   Calculates real time composite safety scores, provenance bands, and top drivers for Solana DeFi protocols.
                 </p>
-                <div className="text-xs font-mono text-slate-400">Parameters: slug (string, required e.g. jupiter, kamino, drift)</div>
+                <div className="text-xs font-mono text-slate-400">Parameters: protocolSlug (string, required e.g. jupiter, kamino, drift)</div>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-cyan-300 text-base">check_policy_rules</span>
+                  <span className="font-mono font-bold text-cyan-300 text-base">solsentry_evaluate_policy</span>
                   <Badge variant="medium">Validation</Badge>
                 </div>
                 <p className="text-slate-300">
-                  Validates pre flight AI transactions against daily volume caps, single trade size limits, and safety thresholds.
+                  Validates pre-flight AI transactions against daily volume caps, single trade size limits, and safety thresholds.
                 </p>
                 <div className="text-xs font-mono text-slate-400">Parameters: action (string), protocolSlug (string), amountUsd (number)</div>
               </div>
 
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-cyan-300 text-base">get_imminent_liquidations</span>
+                  <span className="font-mono font-bold text-cyan-300 text-base">solsentry_get_position_health</span>
                   <Badge variant="critical">Alerting</Badge>
                 </div>
                 <p className="text-slate-300">

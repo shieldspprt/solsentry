@@ -8,6 +8,8 @@ Allow: /
 Allow: /llms.txt
 Allow: /api/v1/
 Allow: /.well-known/ai-plugin.json
+Disallow: /dashboard/
+Disallow: /dashboard/*
 
 User-agent: GPTBot
 Allow: /

@@ -5,21 +5,23 @@ import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 
 export const McpConsoleSection: React.FC = () => {
-  const [selectedTool, setSelectedTool] = useState<string>('get_protocol_risk');
-  const [argInput, setArgInput] = useState<string>('{\n  "slug": "jupiter"\n}');
+  const [selectedTool, setSelectedTool] = useState<string>('solsentry_check_protocol_risk');
+  const [argInput, setArgInput] = useState<string>('{\n  "protocolSlug": "jupiter"\n}');
   const [mcpResult, setMcpResult] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleToolChange = (toolName: string) => {
     setSelectedTool(toolName);
-    if (toolName === 'get_protocol_risk') {
-      setArgInput('{\n  "slug": "jupiter"\n}');
-    } else if (toolName === 'check_policy_rules') {
+    if (toolName === 'solsentry_check_protocol_risk') {
+      setArgInput('{\n  "protocolSlug": "jupiter"\n}');
+    } else if (toolName === 'solsentry_evaluate_policy') {
       setArgInput('{\n  "action": "swap",\n  "protocolSlug": "jupiter",\n  "amountUsd": 500\n}');
-    } else if (toolName === 'get_imminent_liquidations') {
-      setArgInput('{\n  "thresholdHealthFactor": 1.2\n}');
-    } else if (toolName === 'get_oracle_telemetry') {
-      setArgInput('{\n  "feed": "SOL_USD"\n}');
+    } else if (toolName === 'solsentry_preflight') {
+      setArgInput('{\n  "action": "swap",\n  "protocolSlug": "jupiter",\n  "amountUsd": 500\n}');
+    } else if (toolName === 'solsentry_get_position_health') {
+      setArgInput('{\n  "walletAddress": "7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"\n}');
+    } else if (toolName === 'solsentry_get_business_ratios') {
+      setArgInput('{\n  "protocolSlug": "kamino"\n}');
     }
   };
 
@@ -68,10 +70,11 @@ export const McpConsoleSection: React.FC = () => {
               onChange={(e) => handleToolChange(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:border-cyan-400 focus:outline-none font-mono"
             >
-              <option value="get_protocol_risk">get_protocol_risk</option>
-              <option value="check_policy_rules">check_policy_rules</option>
-              <option value="get_imminent_liquidations">get_imminent_liquidations</option>
-              <option value="get_oracle_telemetry">get_oracle_telemetry</option>
+              <option value="solsentry_check_protocol_risk">solsentry_check_protocol_risk</option>
+              <option value="solsentry_evaluate_policy">solsentry_evaluate_policy</option>
+              <option value="solsentry_preflight">solsentry_preflight</option>
+              <option value="solsentry_get_position_health">solsentry_get_position_health</option>
+              <option value="solsentry_get_business_ratios">solsentry_get_business_ratios</option>
             </select>
           </div>
 
