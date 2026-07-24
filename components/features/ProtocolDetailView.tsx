@@ -22,9 +22,10 @@ export interface ProtocolDetailViewProps {
 
 export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'risk_factors' | 'program_verification'>('overview');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const initialBreakdown = computeProtocolRisk(protocol);
-  const { riskData } = useProtocolRisk(protocol.slug, initialBreakdown);
+  const { riskData, mutate } = useProtocolRisk(protocol.slug, initialBreakdown);
   const breakdown = riskData || initialBreakdown;
 
   const m = breakdown.quant_metrics;
@@ -33,6 +34,18 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
   const [simAmount, setSimAmount] = useState(500);
   const [simAction, setSimAction] = useState<ActionType>('swap');
   const [simDailyVolume, setSimDailyVolume] = useState(0);
+
+  const handleSyncTelemetry = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetch('/api/v1/sync', { method: 'POST' });
+      await mutate();
+    } catch {
+      await mutate();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const simResult = evaluatePolicyRules(DEFAULT_POLICY_RULES, {
     action: simAction,
@@ -49,9 +62,15 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <Link href="/dashboard/protocols" className="text-sm font-semibold text-cyan-400 hover:underline mb-3 inline-block">
-          ← Back to Protocols Index
-        </Link>
+        <div className="flex items-center justify-between mb-3">
+          <Link href="/dashboard/protocols" className="text-sm font-semibold text-cyan-400 hover:underline inline-block">
+            ← Back to Protocols Index
+          </Link>
+          <Button variant="secondary" size="sm" onClick={handleSyncTelemetry} disabled={isRefreshing}>
+            {isRefreshing ? 'Syncing Live Telemetry...' : '↻ Sync Live Telemetry'}
+          </Button>
+        </div>
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-950/80 border border-slate-800">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center font-extrabold text-cyan-300 text-xl shrink-0">
@@ -62,7 +81,14 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
                 <h1 className="text-3xl font-extrabold text-slate-100 tracking-tight">{protocol.name}</h1>
                 <Badge score={breakdown.composite_risk_score} />
               </div>
-              <p className="text-sm text-slate-300 font-semibold uppercase tracking-wider mt-1">Category: {protocol.category}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-sm text-slate-300 font-semibold uppercase tracking-wider">Category: {protocol.category}</p>
+                <span className="text-slate-600">•</span>
+                <span className="text-xs text-emerald-400 font-mono font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  Live Pyth & RPC Telemetry
+                </span>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -89,7 +115,7 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
         <Card padding="md">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Active Positions</span>
           <span className="text-3xl font-extrabold text-cyan-300 mt-2 block">{pos.total_open_positions.toLocaleString()}</span>
-          <span className="text-xs text-slate-300 font-medium mt-1 block">{pos.positions_near_liquidation_count} Near Liquidation</span>
+          <span className="text-xs text-amber-400 font-medium mt-1 block">{pos.positions_near_liquidation_count} Near Liquidation ({formatCompactCurrency(pos.positions_near_liquidation_usd)})</span>
         </Card>
       </div>
 

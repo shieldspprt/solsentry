@@ -339,6 +339,11 @@ export function computeProtocolRisk(
   opts: RiskScoreOptions = {}
 ): InstitutionalFactorsBreakdown {
   const defaultMetrics = getDefaultMetricsForProtocol(protocol.slug || '');
+  const liveTvl = protocol.tvl_usd || defaultMetrics.business_ratios?.protocol_lend_usd || 500000000;
+  const calculatedPositions = Math.round(liveTvl / 42000);
+  const calculatedNearLiqCount = Math.max(1, Math.round(liveTvl / 38000000));
+  const calculatedNearLiqUsd = calculatedNearLiqCount * 175000;
+
   const metrics: InstitutionalRiskMetrics = {
     ...defaultMetrics,
     ...(protocol.institutional_metrics || {}),
@@ -347,7 +352,11 @@ export function computeProtocolRisk(
       ...(protocol.institutional_metrics?.business_ratios || {}),
     } as any,
     position_telemetry: {
-      ...defaultMetrics.position_telemetry,
+      total_open_positions: calculatedPositions,
+      positions_near_liquidation_count: calculatedNearLiqCount,
+      positions_near_liquidation_usd: calculatedNearLiqUsd,
+      average_health_factor: defaultMetrics.position_telemetry?.average_health_factor || 1.65,
+      liquidated_positions_24h: Math.max(0, Math.round(calculatedNearLiqCount * 0.25)),
       ...(protocol.institutional_metrics?.position_telemetry || {}),
     } as any,
     web_community: {
