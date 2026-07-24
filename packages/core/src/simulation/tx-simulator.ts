@@ -1,4 +1,5 @@
 import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import bs58 from 'bs58';
 import { detectDrainerPatterns, BalanceDeltaSummary, DrainerScanResult } from './drainer-detector';
 import { logger } from '../../../../lib/logger';
 
@@ -20,6 +21,29 @@ export interface TxSimulationResult {
   drainerScan: DrainerScanResult;
   logs: string[];
   errorMessage?: string;
+}
+
+// Decode a serialized transaction payload to raw bytes.
+//
+// Node's Buffer has no base58 encoding. This previously passed 'hex' as the
+// base58 fallback, which silently decoded base58 input into garbage — so the
+// DEFAULT encoding, the one used by the CLI, the SDK and every doc example,
+// never deserialized a real transaction. The unit tests all passed because they
+// only covered failure paths, where garbage-in produced the expected error.
+//
+// Exported so the decode step can be tested without touching the network.
+export function decodeTransactionPayload(
+  serializedTx: string,
+  encoding: 'base58' | 'base64' = 'base58'
+): Buffer {
+  if (encoding === 'base64') {
+    const buf = Buffer.from(serializedTx, 'base64');
+    // Buffer.from(..., 'base64') never throws; it silently drops invalid
+    // characters. Round-trip to confirm the input really was base64.
+    if (buf.length === 0) throw new Error('Empty payload after base64 decode');
+    return buf;
+  }
+  return Buffer.from(bs58.decode(serializedTx.trim()));
 }
 
 function getRpcConnection(): Connection {
@@ -54,16 +78,41 @@ export async function simulateSolanaTransaction(
   }
 
   const connection = getRpcConnection();
-  const buffer = Buffer.from(serializedTx, encoding === 'base64' ? 'base64' : 'hex');
+
+  let buffer: Buffer;
+  try {
+    buffer = decodeTransactionPayload(serializedTx, encoding);
+  } catch (err: any) {
+    logger.warn('tx_decode_failed', { encoding, error: err?.message });
+    return {
+      success: false,
+      status: 'INVALID_TRANSACTION',
+      unitsConsumed: 0,
+      highComputeWarning: false,
+      netTokenDeltas: [],
+      drainerScan: {
+        isDrainerPattern: false,
+        riskLevel: 'SAFE',
+        scorePenalty: 0,
+        warnings: [`Payload is not valid ${encoding}. Check the encoding parameter.`],
+        detectedPatterns: [],
+      },
+      logs: [],
+      errorMessage: `Could not decode the payload as ${encoding}`,
+    };
+  }
 
   let legacyTx: Transaction | null = null;
   let versionedTx: VersionedTransaction | null = null;
 
   try {
+    // Try legacy first. VersionedTransaction.deserialize accepts many legacy
+    // buffers without throwing and then misreads them, so probing versioned
+    // first silently mangles ordinary transactions.
     try {
-      versionedTx = VersionedTransaction.deserialize(buffer);
-    } catch {
       legacyTx = Transaction.from(buffer);
+    } catch {
+      versionedTx = VersionedTransaction.deserialize(buffer);
     }
   } catch (err: any) {
     logger.warn('tx_deserialization_failed', { error: err.message });
