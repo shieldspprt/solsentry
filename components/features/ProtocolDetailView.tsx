@@ -2,49 +2,51 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
-import { ProtocolRecord, ActionType } from '../../lib/types';
-import { computeProtocolRisk } from '../../packages/core/src/risk-scorer';
+import { ProtocolRecord, ActionType, InstitutionalFactorsBreakdown } from '../../lib/types';
 import { evaluatePolicyRules } from '../../packages/core/src/policy-engine';
 import { DEFAULT_POLICY_RULES } from '../../packages/core/src/constants';
 import { formatCurrency, formatCompactCurrency } from '../../lib/formatters';
 import { ProtocolBusinessRatiosSection } from './ProtocolBusinessRatiosSection';
 import { ProtocolWebTelemetrySection } from './ProtocolWebTelemetrySection';
 import { ProtocolDecisionSection } from './ProtocolDecisionSection';
-import { useProtocolRisk } from '../../hooks/use-sentry-swr';
 
 export interface ProtocolDetailViewProps {
   protocol: ProtocolRecord;
+  /** Grounded server-side; the browser cannot reach the upstream sources. */
+  breakdown: InstitutionalFactorsBreakdown;
+  sourcesLive: string[];
+  sourcesUnavailable: string[];
+  registryError?: string | null;
 }
 
-export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol }) => {
+export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({
+  protocol,
+  breakdown,
+  sourcesLive,
+  sourcesUnavailable,
+  registryError,
+}) => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'overview' | 'risk_factors' | 'program_verification'>('overview');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const initialBreakdown = computeProtocolRisk(protocol);
-  const { riskData, mutate } = useProtocolRisk(protocol.slug, initialBreakdown);
-  const breakdown = riskData || initialBreakdown;
-
-  const m = breakdown.quant_metrics;
-  const pos = m.position_telemetry!;
+  const coverage = breakdown.factor_coverage;
+  const isGrounded = coverage.weight_covered_pct >= 60;
 
   const [simAmount, setSimAmount] = useState(500);
   const [simAction, setSimAction] = useState<ActionType>('swap');
   const [simDailyVolume, setSimDailyVolume] = useState(0);
 
-  const handleSyncTelemetry = async () => {
+  // Re-run the server render, which re-grounds every factor from source.
+  const handleSyncTelemetry = () => {
     setIsRefreshing(true);
-    try {
-      await fetch('/api/v1/sync', { method: 'POST' });
-      await mutate();
-    } catch {
-      await mutate();
-    } finally {
-      setIsRefreshing(false);
-    }
+    router.refresh();
+    setTimeout(() => setIsRefreshing(false), 1200);
   };
 
   const simResult = evaluatePolicyRules(DEFAULT_POLICY_RULES, {
@@ -54,9 +56,11 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
     currentDailyVolumeUsd: simDailyVolume,
     protocolRiskScore: breakdown.composite_risk_score,
     isProtocolAudited: protocol.audit_status === 'audited',
-    isOracleHealthy: breakdown.oracle_depeg_score >= 6,
+    // An unmeasured oracle factor is not evidence of health. Fail closed.
+    isOracleHealthy: (breakdown.oracle_depeg_score ?? 0) >= 6,
   });
-  const failClosed = breakdown.composite_risk_score < 5.0;
+  // Fail closed on a low score *or* on too little evidence to judge one.
+  const failClosed = breakdown.composite_risk_score < 5.0 || !isGrounded;
   const isSimAllowed = simResult.allowed && !failClosed;
 
   return (
@@ -67,9 +71,16 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
             ← Back to Protocols Index
           </Link>
           <Button variant="secondary" size="sm" onClick={handleSyncTelemetry} disabled={isRefreshing}>
-            {isRefreshing ? 'Syncing Live Telemetry...' : '↻ Sync Live Telemetry'}
+            {isRefreshing ? 'Re-grounding…' : '↻ Re-ground from sources'}
           </Button>
         </div>
+
+        {registryError && (
+          <div className="mb-3 p-3.5 rounded-xl bg-amber-950/40 border border-amber-800/70 text-xs text-amber-200">
+            <strong className="font-bold">Protocol registry unavailable</strong> ({registryError}). Showing the bundled protocol
+            record; audit status and program IDs may be out of date. Live factors below are unaffected.
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-950/80 border border-slate-800">
           <div className="flex items-center gap-4">
@@ -81,13 +92,20 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
                 <h1 className="text-3xl font-extrabold text-slate-100 tracking-tight">{protocol.name}</h1>
                 <Badge score={breakdown.composite_risk_score} />
               </div>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex flex-wrap items-center gap-3 mt-1">
                 <p className="text-sm text-slate-300 font-semibold uppercase tracking-wider">Category: {protocol.category}</p>
                 <span className="text-slate-600">•</span>
-                <span className={`text-xs font-mono font-medium flex items-center gap-1.5 ${(m.data_freshness_pct || 0) > 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                  <span className={`w-2 h-2 rounded-full ${(m.data_freshness_pct || 0) > 50 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-                  {(m.data_freshness_pct || 0) > 50 ? '🟢 Live Pyth, Helius & DeFiLlama Telemetry' : '⚪ Model Baseline Estimate'}
+                {/* Driven by real factor provenance, not a stored constant. */}
+                <span className={`text-xs font-mono font-medium flex items-center gap-1.5 ${isGrounded ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  <span className={`w-2 h-2 rounded-full ${isGrounded ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></span>
+                  {coverage.measured_factors}/{coverage.total_factors} factors live ({coverage.weight_covered_pct}% of model weight)
                 </span>
+                {sourcesLive.length > 0 && (
+                  <span className="text-[11px] text-slate-500 font-mono">via {sourcesLive.join(', ')}</span>
+                )}
+                {sourcesUnavailable.length > 0 && (
+                  <span className="text-[11px] text-slate-600 font-mono">unavailable: {sourcesUnavailable.join(', ')}</span>
+                )}
               </div>
             </div>
           </div>
@@ -109,13 +127,20 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
         <Card padding="md">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Safety Score</span>
           <span className="text-3xl font-extrabold text-emerald-400 mt-2 block">{breakdown.composite_risk_score.toFixed(1)} / 10</span>
-          <span className="text-xs text-emerald-300 font-semibold mt-1 block">{breakdown.risk_tier.toUpperCase()} Risk Rating</span>
+          <span className="text-xs text-emerald-300 font-semibold mt-1 block">
+            {breakdown.risk_tier.toUpperCase()} Risk · band {breakdown.confidence?.score_band_low.toFixed(1)}–
+            {breakdown.confidence?.score_band_high.toFixed(1)}
+          </span>
         </Card>
 
+        {/* Protocol-wide open-position counts used to be TVL ÷ 42,000. Real
+            position risk is read per wallet on the Positions page. */}
         <Card padding="md">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Active Positions</span>
-          <span className="text-3xl font-extrabold text-cyan-300 mt-2 block">{pos.total_open_positions.toLocaleString()}</span>
-          <span className="text-xs text-amber-400 font-medium mt-1 block">{pos.positions_near_liquidation_count} Near Liquidation ({formatCompactCurrency(pos.positions_near_liquidation_usd)})</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Your Position Risk</span>
+          <span className="text-3xl font-extrabold text-cyan-300 mt-2 block">—</span>
+          <Link href="/dashboard/positions" className="text-xs text-cyan-400 font-medium mt-1 block hover:underline">
+            Scan a wallet to read real on-chain positions →
+          </Link>
         </Card>
       </div>
 
@@ -172,40 +197,24 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
 
       {activeTab === 'risk_factors' && (
         <div className="space-y-8">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Card padding="sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Audit</span>
-              <span className="text-xl font-extrabold text-slate-100 mt-1 block">{breakdown.audit_governance_score} / 10</span>
-              <span className="text-xs text-cyan-300 font-semibold mt-1 block">{m.upgradeability_timelock_hours}h Timelock</span>
-            </Card>
-
-            <Card padding="sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Liquidation</span>
-              <span className="text-xl font-extrabold text-slate-100 mt-1 block">{breakdown.liquidation_rekt_score} / 10</span>
-              <span className="text-xs text-rose-400 font-semibold mt-1 block">{pos.positions_near_liquidation_count} At Risk</span>
-            </Card>
-
-            <Card padding="sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">MEV & Bot</span>
-              <span className="text-xl font-extrabold text-slate-100 mt-1 block">{breakdown.mev_bot_density_score} / 10</span>
-              <span className="text-xs text-amber-400 font-semibold mt-1 block">{m.bot_density_pct}% Bot Vol</span>
-            </Card>
-
-            <Card padding="sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Web & Social</span>
-              <span className="text-xl font-extrabold text-slate-100 mt-1 block">{breakdown.web_community_score} / 10</span>
-              <span className="text-xs text-indigo-300 font-semibold mt-1 block">Community</span>
-            </Card>
-
-            <Card padding="sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Business Share</span>
-              <span className="text-xl font-extrabold text-slate-100 mt-1 block">{breakdown.business_efficiency_score} / 10</span>
-              <span className="text-xs text-emerald-300 font-semibold mt-1 block">Market Share</span>
-            </Card>
+          {/* One tile per factor, driven off the same FactorScore[] the
+              composite uses — so an unmeasured factor cannot show a number. */}
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+            {(breakdown.factors || []).map((f) => (
+              <Card key={f.key} padding="sm">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{f.label}</span>
+                <span className={`text-xl font-extrabold mt-1 block ${f.measured ? 'text-slate-100' : 'text-slate-600'}`}>
+                  {f.measured && f.score != null ? `${f.score.toFixed(1)} / 10` : '—'}
+                </span>
+                <span className={`text-xs font-semibold mt-1 block ${f.measured ? 'text-cyan-300' : 'text-slate-500'}`}>
+                  {f.measured && f.value != null ? `${f.value} ${f.unit}` : 'Not measured'}
+                </span>
+              </Card>
+            ))}
           </div>
 
-          <ProtocolBusinessRatiosSection protocol={protocol} />
-          <ProtocolWebTelemetrySection protocol={protocol} />
+          <ProtocolBusinessRatiosSection breakdown={breakdown} category={protocol.category} />
+          <ProtocolWebTelemetrySection breakdown={breakdown} />
         </div>
       )}
 
@@ -231,7 +240,13 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
 
             <div className={`mt-6 p-5 rounded-xl border text-sm ${isSimAllowed ? 'bg-emerald-950/80 border-emerald-700' : 'bg-rose-950/80 border-rose-700'}`}>
               <div className={`font-bold text-base mb-2 ${isSimAllowed ? 'text-emerald-300' : 'text-rose-300'}`}>
-                {isSimAllowed ? 'PROCEED — passes all guardrails' : failClosed ? 'BLOCKED — safety score lower than 5.0' : 'BLOCKED — policy violation'}
+                {isSimAllowed
+                  ? 'PROCEED — passes all guardrails'
+                  : !isGrounded
+                  ? `BLOCKED — only ${coverage.weight_covered_pct}% of the risk model is grounded`
+                  : breakdown.composite_risk_score < 5.0
+                  ? 'BLOCKED — safety score lower than 5.0'
+                  : 'BLOCKED — policy violation'}
               </div>
               <div className="flex flex-wrap gap-x-6 gap-y-2 text-slate-200 mt-2">
                 <span>Max allowed now: <strong className="text-slate-100 font-mono">{formatCurrency(simResult.maxAllowedUsd)}</strong></span>

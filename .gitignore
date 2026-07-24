@@ -1,8 +1,9 @@
-```
 # Dependencies
 node_modules/
 
 # Build outputs
+.next/
+out/
 dist/
 build/
 target/
@@ -15,18 +16,25 @@ target/
 .env
 .env.local
 *.env.*
+!.env.example
 
 # Editors
 .vscode/
 .idea/
 *.swp
 *.swo
+.DS_Store
 
 # Logs
 *.log
 
 # Temp files
 *.tmp
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
 
 # Python (if present)
 __pycache__/
@@ -36,26 +44,12 @@ __pycache__/
 .Python
 venv/
 .venv/
-.env
-.env.local
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# MyPy
 .mypy_cache/
-
-# PyTest
 .pytest_cache/
 
-# Gradle
+# Gradle / JVM
 .gradle/
-
-# JVM
 *.class
 *.jar
 *.war
 *.ear
-```

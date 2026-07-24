@@ -10,12 +10,8 @@ import { AgentRecord } from '../../lib/types';
 import { formatTruncateAddress } from '../../lib/formatters';
 import { useAgents } from '../../hooks/use-sentry-swr';
 
-export interface AgentsViewProps {
-  initialAgents?: AgentRecord[];
-}
-
-export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) => {
-  const { agents, mutate } = useAgents(initialAgents);
+export const AgentsView: React.FC = () => {
+  const { agents, mutate, isError, errorMessage } = useAgents();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
@@ -123,7 +119,14 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
         </div>
       </Card>
 
-      {agents.length === 0 ? (
+      {isError ? (
+        <Card padding="lg" className="text-center py-12 border-amber-800/70 bg-amber-950/20">
+          <p className="text-base font-bold text-amber-200">Agent registry unavailable</p>
+          <p className="text-sm text-amber-300/80 mt-1 max-w-md mx-auto">
+            {errorMessage || 'The agent store could not be reached.'} Registered agents cannot be listed until it is restored.
+          </p>
+        </Card>
+      ) : agents.length === 0 ? (
         <Card padding="lg" className="text-center py-16">
           <p className="text-base font-bold text-slate-200">No registered AI agents yet</p>
           <p className="text-sm text-slate-400 mt-1 max-w-sm mx-auto">

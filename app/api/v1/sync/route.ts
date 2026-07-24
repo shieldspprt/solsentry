@@ -39,7 +39,12 @@ export async function POST(request: NextRequest) {
         await supabase.from('protocols').update({
           tvl_usd: merged.tvl_usd,
           risk_score: breakdown.composite_risk_score,
-          oracle_health: breakdown.oracle_depeg_score >= 6 ? 'healthy' : 'degraded',
+          oracle_health:
+            breakdown.oracle_depeg_score == null
+              ? 'unknown'
+              : breakdown.oracle_depeg_score >= 6
+              ? 'healthy'
+              : 'degraded',
           institutional_metrics: breakdown.quant_metrics,
           last_updated: new Date().toISOString(),
         }).eq('slug', slug);

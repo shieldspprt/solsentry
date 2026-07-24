@@ -11,9 +11,11 @@ import { EnableAlertsButton } from './EnableAlertsButton';
 
 export interface ImminentRektRadarCardProps {
   positions: PositionRecord[];
+  /** False until a wallet has been read — "all safe" would otherwise be a lie. */
+  hasWallet?: boolean;
 }
 
-export const ImminentRektRadarCard: React.FC<ImminentRektRadarCardProps> = ({ positions }) => {
+export const ImminentRektRadarCard: React.FC<ImminentRektRadarCardProps> = ({ positions, hasWallet = false }) => {
   // Rank by proximity to liquidation, not a flat threshold — the closest
   // positions are the ones a manager must act on first.
   const atRisk = positions
@@ -27,10 +29,19 @@ export const ImminentRektRadarCard: React.FC<ImminentRektRadarCardProps> = ({ po
       subtitle="Ranked by distance to liquidation, with the exact action size to restore safety"
       action={<EnableAlertsButton />}
     >
-      {atRisk.length === 0 ? (
+      {!hasWallet ? (
+        <div className="p-8 text-center text-sm text-slate-300 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-2">
+          <span className="font-bold text-slate-200 text-base block">No wallet connected</span>
+          <p className="text-slate-400">
+            Connect a wallet to monitor real on-chain positions. Nothing is being monitored yet.
+          </p>
+        </div>
+      ) : atRisk.length === 0 ? (
         <div className="p-8 text-center text-sm text-slate-300 bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-2">
           <span className="font-bold text-emerald-400 text-base block">All Monitored Positions Operating Safely</span>
-          <p className="text-slate-400">No positions within range of their liquidation threshold.</p>
+          <p className="text-slate-400">
+            {positions.length} position{positions.length === 1 ? '' : 's'} read on-chain; none within range of a liquidation threshold.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">

@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { computeProtocolRisk } from '../../../../packages/core/src/risk-scorer';
+import { buildGroundedMetrics } from '../../../../packages/core/src/data-fetchers/grounded-metrics';
 import { ProtocolRecord } from '../../../../lib/types';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../../../lib/default-protocols';
 import { GetBusinessRatiosSchema } from '../schemas';
@@ -40,33 +41,42 @@ export async function handleGetBusinessRatios(args: unknown) {
     };
   }
 
-  const breakdown = computeProtocolRisk(protocolRecord);
+  // Ground in live sources before scoring. Without this the tool returned the
+  // scorer's baseline — which is now, correctly, all nulls.
+  const grounded = await buildGroundedMetrics(protocolRecord);
+  const breakdown = computeProtocolRisk(
+    { ...protocolRecord, tvl_usd: grounded.tvl_usd ?? protocolRecord.tvl_usd, institutional_metrics: grounded.metrics },
+    { provenance: grounded.provenance }
+  );
   const biz = breakdown.quant_metrics.business_ratios;
   const web = breakdown.quant_metrics.web_community;
 
+  // `null` on any field below means the upstream source did not report it.
   return {
     isError: false,
     protocol: protocolRecord.name,
     slug: protocolRecord.slug,
     category: protocolRecord.category,
-    tvlUsd: protocolRecord.tvl_usd,
+    tvlUsd: grounded.tvl_usd ?? protocolRecord.tvl_usd,
+    sourcesLive: grounded.sources_live,
+    sourcesUnavailable: grounded.sources_unavailable,
     businessRatios: {
-      categoryMarketSharePct: biz?.category_market_share_pct,
-      capitalEfficiencyRatio: biz?.capital_efficiency_ratio,
-      annualizedFeeUsd: biz?.annualized_fee_usd,
-      feeToTvlRatioPct: biz?.fee_to_tvl_ratio_pct,
-      utilizationRatePct: biz?.utilization_rate_pct,
-      protocolLendUsd: biz?.protocol_lend_usd,
-      protocolBorrowUsd: biz?.protocol_borrow_usd,
+      categoryMarketSharePct: biz?.category_market_share_pct ?? null,
+      categoryTvlUsd: biz?.category_tvl_usd ?? null,
+      protocolTvlUsd: biz?.protocol_tvl_usd ?? null,
+      annualizedFeeUsd: biz?.annualized_fee_usd ?? null,
+      annualizedBasis: biz?.annualized_basis ?? null,
+      feeToTvlRatioPct: biz?.fee_to_tvl_ratio_pct ?? null,
     },
-    webCommunityStats: {
-      monthlyWebVisits: web?.monthly_web_visits,
-      domainTrustScore: web?.domain_trust_score,
-      socialSentimentScore: web?.social_sentiment_score,
-      developerCommits30d: web?.developer_commits_30d,
-      activeDevsCount: web?.active_devs_count,
+    developerActivity: {
+      commits30d: web?.developer_commits_30d ?? null,
+      activeDevsCount: web?.active_devs_count ?? null,
+      githubOrg: web?.github_org ?? null,
+      reposSampled: web?.repos_sampled ?? null,
+      asOf: web?.as_of ?? null,
     },
     businessEfficiencyScore: breakdown.business_efficiency_score,
     webCommunityScore: breakdown.web_community_score,
+    factorCoverage: breakdown.factor_coverage,
   };
 }

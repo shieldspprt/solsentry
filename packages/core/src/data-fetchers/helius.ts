@@ -78,10 +78,15 @@ export interface SolanaEpochData {
   epochProgressPct: number;
   absoluteSlot: number;
   blockHeight: number;
+  /** Round-trip time of the getEpochInfo call itself, uncached. */
   slotLatencyMs: number;
+  fetchedAt: string;
 }
 
-export async function fetchSolanaEpochInfo(): Promise<SolanaEpochData> {
+// Returns null when the RPC cannot be reached. There is deliberately no
+// fallback epoch: a stale hardcoded epoch rendered as "live" telemetry is worse
+// than an honest "unavailable" state.
+export async function fetchSolanaEpochInfo(): Promise<SolanaEpochData | null> {
   // No hardcoded API keys. Falls back to the public Solana RPC when no Helius
   // key is configured (lower rate limits, but no secret leaked in source).
   const rpcUrl = getHeliusRpcUrl() || 'https://api.mainnet-beta.solana.com';
@@ -96,7 +101,9 @@ export async function fetchSolanaEpochInfo(): Promise<SolanaEpochData> {
         id: 1,
         method: 'getEpochInfo',
       }),
-      next: { revalidate: 15 },
+      // No fetch cache: a cached response would make `rpcLatencyMs` measure a
+      // memory read rather than the network round-trip it claims to report.
+      cache: 'no-store',
     });
 
     const latency = Date.now() - startTime;
@@ -113,19 +120,12 @@ export async function fetchSolanaEpochInfo(): Promise<SolanaEpochData> {
         absoluteSlot: result.absoluteSlot,
         blockHeight: result.blockHeight,
         slotLatencyMs: latency,
+        fetchedAt: new Date().toISOString(),
       };
     }
   } catch {
-    // Fallback mainnet data
+    // fall through to null
   }
 
-  return {
-    epoch: 642,
-    slotIndex: 284100,
-    slotsInEpoch: 432000,
-    epochProgressPct: 65.8,
-    absoluteSlot: 289410200,
-    blockHeight: 271040500,
-    slotLatencyMs: 180,
-  };
+  return null;
 }

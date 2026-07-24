@@ -4,14 +4,28 @@ import { evaluatePositionHealth } from '../../../../../packages/core/src/positio
 import { runStandardStressSuite } from '../../../../../packages/core/src/stress-engine';
 import { sanitizeText } from '../../../../../lib/validation';
 import { logger } from '../../../../../lib/logger';
-import { DEFAULT_SOLANA_POSITIONS } from '../../../../../lib/default-positions';
 
 async function handleReadPositions(walletAddress: string, userId: string | null) {
+  // Without a wallet there is nothing real to report. Previously this returned
+  // a set of sample positions with HTTP 200, which the dashboard rendered as
+  // live holdings requiring action.
   if (!walletAddress) {
-    return NextResponse.json(DEFAULT_SOLANA_POSITIONS, {
-      status: 200,
-      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
-    });
+    return NextResponse.json(
+      {
+        wallet: null,
+        dataSource: 'none',
+        sourcesLive: [],
+        sourcesUnavailable: [],
+        asOf: new Date().toISOString(),
+        totalOpenPositions: 0,
+        imminentLiquidationRiskCount: 0,
+        positions: [],
+        stressScenarios: [],
+        safetyRecommendation: 'NO_WALLET_PROVIDED',
+        message: 'Provide a Solana wallet address to read real on-chain positions.',
+      },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
   if (!isValidSolanaAddress(walletAddress)) {
     return NextResponse.json({ error: 'invalid_input', message: 'Invalid Solana wallet address' }, { status: 400 });
@@ -49,6 +63,8 @@ async function handleReadPositions(walletAddress: string, userId: string | null)
       totalOpenPositions: evaluated.length,
       imminentLiquidationRiskCount: imminent,
       positions: evaluated,
+      // Underlying normalised records, for clients that render the full table.
+      rawPositions: live.positions,
       stressScenarios: stress,
       safetyRecommendation:
         imminent > 0 ? 'CRITICAL_ACTION_REQUIRED' : evaluated.length === 0 ? 'NO_OPEN_POSITIONS' : 'HEALTHY_BOUNDS',

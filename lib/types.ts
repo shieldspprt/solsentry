@@ -56,32 +56,27 @@ export interface ExploitHistoryItem {
   description: string;
 }
 
+// Developer activity, read from the protocol's public GitHub organisation.
+// Web-traffic, domain-trust and "social sentiment" fields used to live here;
+// nothing in the codebase ever fetched them, so they were constants presented
+// as telemetry and have been removed rather than left unsourced.
 export interface WebCommunityStats {
-  monthly_web_visits: number;
-  domain_trust_score: number;
-  social_sentiment_score: number;
-  developer_commits_30d: number;
-  active_devs_count: number;
+  developer_commits_30d: number | null;
+  active_devs_count: number | null;
+  github_org: string | null;
+  repos_sampled: number | null;
+  as_of: string | null;
 }
 
+// Economics derived from DeFiLlama TVL + fee series. `null` means the upstream
+// did not report it — never a stand-in constant.
 export interface BusinessRatios {
-  category_market_share_pct: number;
-  total_category_lend_usd: number;
-  protocol_lend_usd: number;
-  total_category_borrow_usd: number;
-  protocol_borrow_usd: number;
-  capital_efficiency_ratio: number;
-  annualized_fee_usd: number;
-  fee_to_tvl_ratio_pct: number;
-  utilization_rate_pct: number;
-}
-
-export interface PositionTelemetry {
-  total_open_positions: number;
-  positions_near_liquidation_count: number;
-  positions_near_liquidation_usd: number;
-  average_health_factor: number;
-  liquidated_positions_24h: number;
+  category_market_share_pct: number | null;
+  category_tvl_usd: number | null;
+  protocol_tvl_usd: number | null;
+  annualized_fee_usd: number | null;
+  annualized_basis: '30d' | '7d' | '24h' | null;
+  fee_to_tvl_ratio_pct: number | null;
 }
 
 export type AgentDecisionAction = 'TAKE_POSITION' | 'CHANGE_POSITION' | 'SELL_POSITION' | 'HOLD';
@@ -93,22 +88,24 @@ export interface AgentDecision {
   suggested_strategy: 'increase_collateral' | 'deleverage' | 'exit_protocol' | 'enter_safely' | 'hold';
 }
 
+// Every field is nullable by design. `null` is the honest representation of a
+// metric SolSentry cannot currently observe, and the scorer excludes null-driven
+// factors from the composite instead of scoring them off a constant.
 export interface InstitutionalRiskMetrics {
-  bot_density_pct: number;
-  mev_sandwich_risk_score: number;
-  whale_concentration_pct: number;
-  liquidation_cascade_risk_usd: number;
-  near_liquidation_ratio_pct: number;
-  oracle_slot_lag_ms: number;
-  lst_depeg_deviation_pct: number;
-  upgradeability_timelock_hours: number;
-  has_pause_circuit_breaker: boolean;
-  unique_active_wallets_24h: number;
-  liquidated_usd_24h: number;
+  /** % of volume that is bot-driven. No public source yet — currently null. */
+  bot_density_pct: number | null;
+  /** % of open value near its liquidation threshold. No public source yet. */
+  near_liquidation_ratio_pct: number | null;
+  /** Top-10 holder share of token supply (Helius). */
+  whale_concentration_pct: number | null;
+  /** Pyth publish staleness, used as a slot-lag proxy. */
+  oracle_slot_lag_ms: number | null;
+  /** Governance upgrade timelock. Sourced from protocol docs, not measured. */
+  upgradeability_timelock_hours: number | null;
   web_community?: WebCommunityStats;
   business_ratios?: BusinessRatios;
-  position_telemetry?: PositionTelemetry;
-  data_freshness_pct?: number;
+  /** Share of scored factors grounded in a live source (0..100). */
+  live_factor_coverage_pct?: number;
   last_synced_at?: string;
 }
 
@@ -141,10 +138,12 @@ export type DataSource =
   | 'defillama'
   | 'pyth'
   | 'helius'
+  | 'github'
   | 'onchain'
   | 'jito'
   | 'derived'
-  | 'model_default';
+  | 'protocol_docs'
+  | 'unmeasured';
 
 export type FactorKey =
   | 'audit_governance'
@@ -163,18 +162,31 @@ export interface FactorProvenance {
 }
 
 // A single scored factor with its evidence. Higher score = safer.
+// An unmeasured factor carries score === null and contributes nothing: its
+// nominal weight is redistributed across the factors that do have data.
 export interface FactorScore {
   key: FactorKey;
   label: string;
-  score: number; // 0..10 (higher = safer)
-  weight: number; // 0..1
+  measured: boolean;
+  score: number | null; // 0..10 (higher = safer); null when unmeasured
+  nominal_weight: number; // 0..1 — the factor's weight in a fully-grounded score
+  weight: number; // 0..1 — effective weight after renormalisation
   contribution: number; // score * weight — points toward composite
   confidence: number; // 0..1 confidence in the underlying data
   source: DataSource;
-  as_of: string;
+  as_of: string | null;
   value: number | null; // raw driving metric (e.g. whale %, oracle ms)
   unit: string; // '%', 'ms', 'usd', 'score', 'ratio', 'hours'
-  rationale: string; // one-line explanation of the score
+  rationale: string; // one-line explanation of the score, or why it is unmeasured
+}
+
+// How much of the model is actually grounded right now.
+export interface FactorCoverage {
+  measured_factors: number;
+  total_factors: number;
+  /** Share of nominal weight backed by real data (0..100). */
+  weight_covered_pct: number;
+  unmeasured: FactorKey[];
 }
 
 // Uncertainty envelope around the composite.
@@ -220,14 +232,15 @@ export interface DataQualityIndicator {
 }
 
 export interface InstitutionalFactorsBreakdown {
-  audit_governance_score: number;
-  liquidation_rekt_score: number;
-  mev_bot_density_score: number;
-  whale_concentration_score: number;
-  oracle_depeg_score: number;
-  web_community_score: number;
-  business_efficiency_score: number;
+  audit_governance_score: number | null;
+  liquidation_rekt_score: number | null;
+  mev_bot_density_score: number | null;
+  whale_concentration_score: number | null;
+  oracle_depeg_score: number | null;
+  web_community_score: number | null;
+  business_efficiency_score: number | null;
   composite_risk_score: number;
+  factor_coverage: FactorCoverage;
   risk_tier: RiskLevel;
   action_recommendation: RecommendationType;
   agent_decision: AgentDecision;

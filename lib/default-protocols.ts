@@ -1,5 +1,10 @@
 import { ProtocolRecord } from './types';
 
+// Bundled protocol registry: identity, program IDs and audit history — the
+// facts that do not change hour to hour. TVL here is a last-resort placeholder
+// used only until the live DeFiLlama value loads; risk scoring never derives a
+// ratio from it. `tvl_usd: null` means DeFiLlama tracks no TVL for that
+// protocol, and the UI shows "—" rather than a number we cannot source.
 export const DEFAULT_SOLANA_PROTOCOLS: ProtocolRecord[] = [
   {
     id: '57319386-ab29-4649-a848-366416ca079d',
@@ -43,8 +48,11 @@ export const DEFAULT_SOLANA_PROTOCOLS: ProtocolRecord[] = [
     name: 'Pump.fun',
     category: 'launchpad',
     program_ids: ['6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'],
-    tvl_usd: 485000000,
-    tvl_change_24h: 14.2,
+    // A launchpad holds no protocol TVL — liquidity graduates to PumpSwap —
+    // and DeFiLlama reports none. It does report fees, so business efficiency
+    // still grounds on the fee series.
+    tvl_usd: null,
+    tvl_change_24h: null,
     audit_status: 'audited',
     auditors: ['OtterSec'],
     audit_date: '2024-03-10',

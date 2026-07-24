@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 export function issueApiKey(): { key: string; hash: string; prefix: string } {
-  let hexString = '';
-  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
-    const bytes = new Uint8Array(24);
-    crypto.getRandomValues(bytes);
-    hexString = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-  } else {
-    hexString = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  // Key material must be cryptographically random. Falling back to Math.random()
+  // would mint guessable credentials, so we fail loudly instead.
+  if (typeof crypto === 'undefined' || !crypto.getRandomValues) {
+    throw new Error('Cannot issue API key: no cryptographic RNG available in this runtime');
   }
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  const hexString = Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
   const key = `ss_${hexString}`;
   const prefix = key.slice(0, 11);
   const hash = hashApiKeySync(key);
@@ -23,16 +23,14 @@ function hashApiKeySync(key: string): string {
       return nodeCrypto.createHash('sha256').update(key).digest('hex');
     }
   } catch {
-    // Edge environment fallback
+    // fall through
   }
 
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) {
-    const char = key.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0;
-  }
-  return Math.abs(hash).toString(16).padStart(64, '0');
+  // The previous fallback here was a 32-bit non-cryptographic string hash,
+  // left-padded to look like SHA-256. Collisions in that space are trivial to
+  // find, so a runtime without a real hash must not silently produce one.
+  // Edge callers should use hashApiKeyAsync(), which uses WebCrypto.
+  throw new Error('Cannot hash API key: no SHA-256 implementation available in this runtime');
 }
 
 export async function hashApiKeyAsync(key: string): Promise<string> {

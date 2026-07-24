@@ -2,7 +2,6 @@ import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { runStressScenario, runStandardStressSuite } from '../../../../packages/core/src/stress-engine';
 import { readWalletPositions, isValidSolanaAddress } from '../../../../packages/core/src/wallet-reader';
 import { PositionRecord } from '../../../../lib/types';
-import { DEFAULT_SOLANA_POSITIONS } from '../../../../lib/default-positions';
 import { StressTestSchema } from '../schemas';
 
 // Portfolio stress test: simulate an adverse price move and report which
@@ -17,8 +16,10 @@ export async function handleStressTest(args: unknown) {
 
   const { protocolSlug, agentId, walletAddress, priceShockPct } = parseResult.data;
 
-  let positions: PositionRecord[] = DEFAULT_SOLANA_POSITIONS;
-  let dataSource: 'onchain_wallet' | 'database' | 'default_sample' = 'default_sample';
+  // Only real positions are ever stressed. Stress-testing invented positions
+  // produces a confident, meaningless answer — worse than no answer at all.
+  let positions: PositionRecord[] = [];
+  let dataSource: 'onchain_wallet' | 'database' | 'none' = 'none';
 
   if (walletAddress) {
     if (!isValidSolanaAddress(walletAddress)) {
@@ -33,16 +34,26 @@ export async function handleStressTest(args: unknown) {
       let query = supabase.from('positions').select('*').eq('status', 'open');
       if (agentId) query = query.eq('agent_id', agentId);
       if (protocolSlug) query = query.eq('protocol_slug', protocolSlug);
-      const { data } = await query;
-      if (data && data.length > 0) {
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
         positions = data as unknown as PositionRecord[];
         dataSource = 'database';
-      } else if (protocolSlug) {
-        positions = DEFAULT_SOLANA_POSITIONS.filter((p) => p.protocol_slug === protocolSlug);
       }
     } catch {
-      // fallback to defaults
+      // leave positions empty — reported explicitly below
     }
+  }
+
+  if (positions.length === 0) {
+    return {
+      isError: false,
+      mode: 'none',
+      dataSource,
+      positionsEvaluated: 0,
+      scenarios: [],
+      headline:
+        'No positions available to stress. Pass walletAddress to stress real on-chain positions, or register positions for this agent.',
+    };
   }
 
   if (typeof priceShockPct === 'number') {

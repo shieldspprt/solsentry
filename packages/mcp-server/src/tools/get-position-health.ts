@@ -3,7 +3,6 @@ import { evaluatePositionHealth } from '../../../../packages/core/src/position-m
 import { readWalletPositions, isValidSolanaAddress } from '../../../../packages/core/src/wallet-reader';
 import { sanitizeText } from '../../../../lib/validation';
 import { PositionRecord } from '../../../../lib/types';
-import { DEFAULT_SOLANA_POSITIONS } from '../../../../lib/default-positions';
 
 export interface GetPositionHealthArgs {
   agentId?: string;
@@ -17,8 +16,11 @@ export async function handleGetPositionHealth(args: GetPositionHealthArgs = {}) 
   const protocolSlug = safeArgs.protocolSlug ? sanitizeText(safeArgs.protocolSlug).toLowerCase() : null;
   const walletAddress = safeArgs.walletAddress ? sanitizeText(safeArgs.walletAddress) : null;
 
-  let positionsList: PositionRecord[] = DEFAULT_SOLANA_POSITIONS;
-  let dataSource: 'onchain_wallet' | 'database' | 'default_sample' = 'default_sample';
+  // Positions are only ever real: read on-chain for a wallet, or stored in the
+  // database for a registered agent. There is no sample fallback — returning
+  // invented positions to an agent asking about its own risk is indefensible.
+  let positionsList: PositionRecord[] = [];
+  let dataSource: 'onchain_wallet' | 'database' | 'none' = 'none';
 
   // Preferred path: read REAL on-chain positions for the wallet.
   if (walletAddress) {
@@ -61,6 +63,7 @@ export async function handleGetPositionHealth(args: GetPositionHealthArgs = {}) 
     };
   }
 
+  let databaseError: string | null = null;
   try {
     const supabase = getSupabaseAdmin();
     let query = supabase.from('positions').select('*').eq('status', 'open');
@@ -68,15 +71,31 @@ export async function handleGetPositionHealth(args: GetPositionHealthArgs = {}) 
     if (agentId) query = query.eq('agent_id', agentId);
     if (protocolSlug) query = query.eq('protocol_slug', protocolSlug);
 
-    const { data: positions } = await query;
-    if (positions && positions.length > 0) {
+    const { data: positions, error } = await query;
+    if (error) {
+      databaseError = error.message;
+    } else if (positions && positions.length > 0) {
       positionsList = positions as unknown as PositionRecord[];
       dataSource = 'database';
-    } else if (protocolSlug) {
-      positionsList = DEFAULT_SOLANA_POSITIONS.filter((p) => p.protocol_slug === protocolSlug);
     }
-  } catch {
-    // Fallback
+  } catch (err: any) {
+    databaseError = err?.message || 'position store unreachable';
+  }
+
+  // Nothing real to report: say so explicitly rather than returning an empty
+  // "healthy" verdict the agent might read as an all-clear.
+  if (positionsList.length === 0) {
+    return {
+      success: true,
+      dataSource: 'none' as const,
+      totalOpenPositions: 0,
+      imminentLiquidationRiskCount: 0,
+      positions: [],
+      safetyRecommendation: 'NO_POSITION_DATA',
+      note: databaseError
+        ? `No position data available (position store unreachable: ${databaseError}). Pass walletAddress to read real on-chain positions.`
+        : 'No stored positions matched. Pass walletAddress to read real on-chain positions from Kamino.',
+    };
   }
 
   const evaluatedPositions = positionsList.map((pos) => {

@@ -116,7 +116,14 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head>
-        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+        {/* JSON-LD must go through dangerouslySetInnerHTML. Passed as a child,
+            React HTML-escapes the quotes on the server but not on the client,
+            so hydration hits a text mismatch and throws away the entire
+            server-rendered document to re-render it client-side. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
       </head>
       <body className="bg-[var(--color-bg)] text-slate-100 min-h-screen font-sans antialiased">
         <WalletContextProvider>

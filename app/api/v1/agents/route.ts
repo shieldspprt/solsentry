@@ -1,27 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { sanitizeText } from '../../../../lib/validation';
-import { DEFAULT_SOLANA_AGENTS } from '../../../../lib/default-agents';
 
+// Registered agents are whatever is actually in the store — an empty list is a
+// truthful answer. Sample agents used to be returned here and rendered as if
+// real users had registered them.
 export async function GET() {
   try {
-    let agents = DEFAULT_SOLANA_AGENTS;
     const supabase = getSupabaseAdmin();
-    if (supabase) {
-      const { data, error } = await supabase.from('agents').select('*');
-      if (!error && data && data.length > 0) {
-        agents = data as any;
-      }
+    const { data, error } = await supabase.from('agents').select('*');
+    if (error) {
+      return NextResponse.json(
+        { error: 'store_unavailable', message: error.message, agents: [] },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } }
+      );
     }
-    return NextResponse.json(agents, {
+    return NextResponse.json(data || [], {
       status: 200,
       headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
     });
-  } catch {
-    return NextResponse.json(DEFAULT_SOLANA_AGENTS, {
-      status: 200,
-      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
-    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: 'store_unavailable', message: err?.message || 'Agent store unreachable', agents: [] },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } }
+    );
   }
 }
 

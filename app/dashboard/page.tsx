@@ -1,39 +1,42 @@
 import React from 'react';
 import { DashboardView } from '../../components/features/DashboardView';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../lib/default-protocols';
-import { DEFAULT_SOLANA_POSITIONS } from '../../lib/default-positions';
 import { fetchSolanaEpochInfo } from '../../packages/core/src/data-fetchers/helius';
 import { getSupabaseAdmin } from '../../lib/supabase-admin';
+import { ProtocolRecord } from '../../lib/types';
 
 export const revalidate = 15;
 
 export default async function DashboardPage() {
-  let recentChecksCount = 1420;
-  let agentCount = 4;
+  // null means "we could not read this", which the UI renders as "—".
+  // Substituting a plausible-looking number here is how a dead database ends
+  // up looking like a healthy one.
+  let recentChecksCount: number | null = null;
+  let agentCount: number | null = null;
+  let protocols: ProtocolRecord[] = DEFAULT_SOLANA_PROTOCOLS;
 
   try {
     const supabase = getSupabaseAdmin();
-    const [{ count: checksCount }, { count: agentsCount }] = await Promise.all([
+    const [checks, agents, stored] = await Promise.all([
       supabase.from('risk_checks').select('*', { count: 'exact', head: true }),
       supabase.from('agents').select('*', { count: 'exact', head: true }),
+      supabase.from('protocols').select('*').order('risk_score', { ascending: false }),
     ]);
 
-    if (checksCount !== null && checksCount > 0) {
-      recentChecksCount = checksCount;
-    }
-    if (agentsCount !== null && agentsCount > 0) {
-      agentCount = agentsCount;
+    if (!checks.error) recentChecksCount = checks.count ?? 0;
+    if (!agents.error) agentCount = agents.count ?? 0;
+    if (!stored.error && stored.data && stored.data.length > 0) {
+      protocols = stored.data as unknown as ProtocolRecord[];
     }
   } catch {
-    // Fallback
+    // Counts stay null; the registry falls back to the bundled protocol list.
   }
 
   const epochData = await fetchSolanaEpochInfo();
 
   return (
     <DashboardView
-      protocols={DEFAULT_SOLANA_PROTOCOLS}
-      positions={DEFAULT_SOLANA_POSITIONS}
+      protocols={protocols}
       agentCount={agentCount}
       recentChecksCount={recentChecksCount}
       epochData={epochData}

@@ -3,14 +3,28 @@ import { verifyApiKey } from './lib/api-key';
 
 const PUBLIC_PATHS = new Set([
   '/',
-  '/api/v1/openapi.json',
-  '/api/v1/protocols',
   '/llms.txt',
   '/robots.txt',
   '/sitemap.xml',
   '/manifest.json',
   '/sw.js',
   '/favicon.ico',
+]);
+
+// Read-only endpoints that compute over public data (protocol registry, Pyth,
+// Helius, DeFiLlama, on-chain wallet reads). They stay rate-limited but need no
+// key — the dashboard is a browser client and cannot hold one, and gating them
+// meant every "live" panel in the UI silently fell back to model defaults.
+// Anything that writes, mutates, or reads account state stays authenticated.
+const PUBLIC_API_PATHS = new Set([
+  '/api/v1/openapi.json',
+  '/api/v1/protocols',
+  '/api/v1/protocols/scored',
+  '/api/v1/risk-check',
+  '/api/v1/positions/read',
+  '/api/v1/simulate',
+  '/api/v1/stream',
+  '/api/v1/mcp',
 ]);
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -86,6 +100,12 @@ export async function middleware(req: NextRequest) {
     const apiKeyHeader = req.headers.get('x-solsentry-api-key');
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : apiKeyHeader;
 
+    // Public read-only endpoints: rate-limited above, no key required. A key
+    // may still be supplied to attribute the call to a user.
+    if (PUBLIC_API_PATHS.has(pathname) && !token) {
+      return NextResponse.next();
+    }
+
     // Reject missing API key (AUTH-01, AUTH-04)
     if (!token) {
       return NextResponse.json(
@@ -94,9 +114,13 @@ export async function middleware(req: NextRequest) {
       );
     }
 
-    // Validate key against users table or test key (AUTH-01)
+    // Validate key against the users table. The fixed development key is a
+    // local convenience only — accepting it in production would be an
+    // unauthenticated bypass of every protected endpoint.
     const userId = await verifyApiKey(token);
-    if (!userId && token !== 'ss_test_key_mock_12345') {
+    const isDevTestKey =
+      process.env.NODE_ENV !== 'production' && token === 'ss_test_key_mock_12345';
+    if (!userId && !isDevTestKey) {
       return NextResponse.json(
         { error: 'forbidden', message: 'Invalid API key.' },
         { status: 403 }

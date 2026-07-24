@@ -5,15 +5,26 @@ import { Card } from '../ui/Card';
 import { SolanaEpochData } from '../../packages/core/src/data-fetchers/helius';
 
 export interface SolanaEpochProgressCardProps {
-  epochData: SolanaEpochData;
+  epochData: SolanaEpochData | null;
 }
 
 export const SolanaEpochProgressCard: React.FC<SolanaEpochProgressCardProps> = ({ epochData }) => {
+  if (!epochData) {
+    return (
+      <Card padding="md" title="Epoch Telemetry" subtitle="Live epoch slot progress and RPC round-trip time">
+        <div className="p-8 text-center text-sm bg-slate-950/70 rounded-xl border border-slate-800/80 space-y-2">
+          <span className="font-bold text-amber-300 text-base block">Solana RPC unreachable</span>
+          <p className="text-slate-400">No epoch data is being received. Check the configured RPC endpoint.</p>
+        </div>
+      </Card>
+    );
+  }
+
   const slotsRemaining = epochData.slotsInEpoch - epochData.slotIndex;
   const hoursRemaining = (slotsRemaining * 0.45 / 3600).toFixed(1);
 
   return (
-    <Card padding="md" title="Epoch Telemetry" subtitle="Live epoch slot progress and RPC network latency">
+    <Card padding="md" title="Epoch Telemetry" subtitle="Live epoch slot progress and RPC round-trip time">
       <div className="space-y-6">
         <div className="flex items-center justify-between text-sm">
           <div>
@@ -49,7 +60,7 @@ export const SolanaEpochProgressCard: React.FC<SolanaEpochProgressCardProps> = (
             <span className="font-mono font-bold text-slate-100 text-base mt-1 block">{epochData.blockHeight.toLocaleString()}</span>
           </div>
           <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800/80">
-            <span className="text-slate-400 font-semibold uppercase text-xs block">RPC Latency</span>
+            <span className="text-slate-400 font-semibold uppercase text-xs block">RPC Round-Trip</span>
             <span className="font-mono font-bold text-emerald-400 text-base mt-1 block">{epochData.slotLatencyMs} ms</span>
           </div>
         </div>

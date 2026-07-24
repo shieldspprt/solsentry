@@ -5,81 +5,172 @@ import { runStressScenario } from '../stress-engine';
 import { DEFAULT_POLICY_RULES } from '../constants';
 import { PositionRecord } from '../../../../lib/types';
 
-describe('Institutional Risk Scorer', () => {
-  it('should compute high composite score for fully audited protocol with low bot density and healthy oracle', () => {
-    const result = computeProtocolRisk({
-      slug: 'kamino',
-      name: 'Kamino Finance',
-      category: 'lending',
-      audit_status: 'audited',
-      auditors: ['OtterSec', 'Neodyme'],
-      tvl_usd: 1053815624,
-      oracle_health: 'healthy',
-      exploit_history: [],
-    });
+const KAMINO = {
+  slug: 'kamino',
+  name: 'Kamino Finance',
+  category: 'lending' as const,
+  audit_status: 'audited' as const,
+  auditors: ['OtterSec', 'Neodyme'],
+  tvl_usd: 1053815624,
+  oracle_health: 'healthy' as const,
+  exploit_history: [],
+};
 
-    expect(result.composite_risk_score).toBeGreaterThanOrEqual(8.0);
-    expect(result.risk_tier).toBe('low');
-    expect(result.action_recommendation).toBe('proceed');
-    expect(result.quant_metrics.bot_density_pct).toBeDefined();
-    expect(result.quant_metrics.unique_active_wallets_24h).toBeGreaterThan(0);
+describe('Institutional Risk Scorer', () => {
+  it('invents nothing: a protocol with no live metrics reports every data-driven factor as unmeasured', () => {
+    const result = computeProtocolRisk(KAMINO);
+
+    // Audit status is a registry fact and stays measured; everything that needs
+    // a live feed must not be scored off a constant.
+    const unmeasured = result.factor_coverage.unmeasured;
+    expect(unmeasured).toContain('liquidation_rekt');
+    expect(unmeasured).toContain('mev_bot_density');
+    expect(unmeasured).toContain('whale_concentration');
+    expect(unmeasured).toContain('oracle_depeg');
+    expect(unmeasured).toContain('business_efficiency');
+
+    expect(result.quant_metrics.bot_density_pct).toBeNull();
+    expect(result.quant_metrics.whale_concentration_pct).toBeNull();
+    expect(result.quant_metrics.near_liquidation_ratio_pct).toBeNull();
+
+    // Unmeasured factors carry no score and no effective weight.
+    for (const f of result.factors!.filter((x) => !x.measured)) {
+      expect(f.score).toBeNull();
+      expect(f.weight).toBe(0);
+      expect(f.contribution).toBe(0);
+      expect(f.source).toBe('unmeasured');
+    }
   });
 
-  it('should emit decision-grade metadata: factors, confidence band, drivers, model version', () => {
-    const result = computeProtocolRisk({
-      slug: 'kamino',
-      name: 'Kamino Finance',
-      category: 'lending',
-      audit_status: 'audited',
-      auditors: ['OtterSec', 'Neodyme'],
-      oracle_health: 'healthy',
-      exploit_history: [],
+  it('renormalises effective weights across measured factors only', () => {
+    const result = computeProtocolRisk(KAMINO, {
+      provenance: {
+        oracle_depeg: { source: 'pyth', as_of: '2026-01-01T00:00:00Z', confidence: 0.95 },
+      },
     });
 
-    expect(result.factors).toBeDefined();
     expect(result.factors!.length).toBe(7);
-    // weights must sum to 1.0
-    const weightSum = result.factors!.reduce((s, f) => s + f.weight, 0);
-    expect(Math.round(weightSum * 100) / 100).toBe(1.0);
-    // every factor score clamped to 0..10
+    const measured = result.factors!.filter((f) => f.measured);
+    expect(measured.length).toBeGreaterThan(0);
+    expect(measured.length).toBeLessThan(7);
+
+    // Effective weights across measured factors must still sum to 1.0.
+    const weightSum = measured.reduce((s, f) => s + f.weight, 0);
+    expect(Math.round(weightSum * 1000) / 1000).toBe(1.0);
+
+    // Coverage reports the share of nominal weight actually backed by data.
+    expect(result.factor_coverage.measured_factors).toBe(measured.length);
+    expect(result.factor_coverage.weight_covered_pct).toBeGreaterThan(0);
+    expect(result.factor_coverage.weight_covered_pct).toBeLessThan(100);
+  });
+
+  it('emits decision-grade metadata with a band that brackets the score', () => {
+    const result = computeProtocolRisk(KAMINO);
+
     for (const f of result.factors!) {
+      if (f.score == null) continue;
       expect(f.score).toBeGreaterThanOrEqual(0);
       expect(f.score).toBeLessThanOrEqual(10);
     }
-    expect(result.confidence).toBeDefined();
     expect(result.confidence!.score_band_low).toBeLessThanOrEqual(result.composite_risk_score);
     expect(result.confidence!.score_band_high).toBeGreaterThanOrEqual(result.composite_risk_score);
-    expect(result.top_drivers!.length).toBeGreaterThan(0);
     expect(result.model_version).toBeDefined();
     expect(result.safety_score).toBe(result.composite_risk_score);
   });
 
-  it('should lower confidence when metrics are model defaults vs live provenance', () => {
-    const base = { slug: 'jupiter', name: 'Jupiter', category: 'dex' as const, audit_status: 'audited' as const, auditors: ['OtterSec'], oracle_health: 'healthy' as const, exploit_history: [] };
-    const defaulted = computeProtocolRisk(base);
-    const grounded = computeProtocolRisk(base, {
-      provenance: {
-        oracle_depeg: { source: 'pyth', as_of: new Date().toISOString(), confidence: 0.95 },
-        whale_concentration: { source: 'helius', as_of: new Date().toISOString(), confidence: 0.9 },
+  it('raises confidence as more factors become grounded', () => {
+    const thin = computeProtocolRisk(KAMINO);
+    const grounded = computeProtocolRisk(
+      {
+        ...KAMINO,
+        institutional_metrics: {
+          bot_density_pct: 22.4,
+          near_liquidation_ratio_pct: 3.2,
+          whale_concentration_pct: 28.5,
+          oracle_slot_lag_ms: 180,
+          upgradeability_timelock_hours: 48,
+        },
       },
-    });
-    expect(grounded.confidence!.overall).toBeGreaterThan(defaulted.confidence!.overall);
+      {
+        provenance: {
+          oracle_depeg: { source: 'pyth', as_of: '2026-01-01T00:00:00Z', confidence: 0.95 },
+          whale_concentration: { source: 'helius', as_of: '2026-01-01T00:00:00Z', confidence: 0.9 },
+        },
+      }
+    );
+    expect(grounded.confidence!.overall).toBeGreaterThan(thin.confidence!.overall);
+    expect(grounded.factor_coverage.weight_covered_pct).toBeGreaterThan(thin.factor_coverage.weight_covered_pct);
   });
 
-  it('should trigger warnings and downgrade score for un-timelocked or high bot density protocols', () => {
+  it('withholds a directional call when a single factor would carry the whole score', () => {
+    // Only the audit factor resolves, so renormalisation gives it 100% weight
+    // and an audited protocol scores 10/10 on one data point.
+    const result = computeProtocolRisk(KAMINO);
+
+    expect(result.factor_coverage.measured_factors).toBe(1);
+    expect(result.composite_risk_score).toBe(10);
+    // ...but 20% coverage is below the floor, so no "safe to enter" verdict.
+    expect(result.agent_decision.action).toBe('HOLD');
+    expect(result.action_recommendation).toBe('proceed_with_caution');
+    expect(result.agent_decision.primary_reason).toContain('below the 50% floor');
+  });
+
+  it('issues a directional call once coverage clears the floor', () => {
+    const result = computeProtocolRisk(
+      {
+        ...KAMINO,
+        institutional_metrics: {
+          bot_density_pct: 20,
+          near_liquidation_ratio_pct: 1.0,
+          whale_concentration_pct: 15,
+          oracle_slot_lag_ms: 200,
+          upgradeability_timelock_hours: 48,
+        },
+      },
+      {
+        provenance: {
+          oracle_depeg: { source: 'pyth', as_of: '2026-01-01T00:00:00Z', confidence: 0.95 },
+          whale_concentration: { source: 'helius', as_of: '2026-01-01T00:00:00Z', confidence: 0.9 },
+        },
+      }
+    );
+
+    expect(result.factor_coverage.weight_covered_pct).toBeGreaterThanOrEqual(50);
+    expect(result.agent_decision.action).not.toBe('HOLD');
+  });
+
+  it('refuses to recommend anything when nothing can be grounded', () => {
+    const result = computeProtocolRisk({ slug: 'unknown-protocol', name: 'Unknown', category: 'dex' });
+
+    expect(result.factor_coverage.measured_factors).toBe(0);
+    expect(result.agent_decision.action).toBe('HOLD');
+    expect(result.agent_decision.confidence_score).toBe(0);
+    expect(result.confidence!.overall).toBe(0);
+  });
+
+  it('does not let protocol size drive the recommendation', () => {
+    // TVL used to be divided by a constant to synthesise a near-liquidation
+    // count, which then overrode the verdict for any large protocol.
+    const small = computeProtocolRisk({ ...KAMINO, tvl_usd: 1_000_000 });
+    const huge = computeProtocolRisk({ ...KAMINO, tvl_usd: 50_000_000_000 });
+
+    expect(huge.composite_risk_score).toBe(small.composite_risk_score);
+    expect(huge.agent_decision.action).toBe(small.agent_decision.action);
+  });
+
+  it('warns and penalises a sub-24h governance timelock', () => {
     const result = computeProtocolRisk({
       slug: 'raydium',
       name: 'Raydium',
       category: 'dex',
       audit_status: 'audited',
       auditors: ['OtterSec'],
-      tvl_usd: 862046088,
       oracle_health: 'healthy',
       exploit_history: [],
+      institutional_metrics: { upgradeability_timelock_hours: 6 } as any,
     });
 
-    expect(result.quant_metrics.bot_density_pct).toBeGreaterThan(50.0);
-    expect(result.critical_warnings.length).toBeGreaterThan(0);
+    expect(result.critical_warnings.some((w) => w.includes('Timelock'))).toBe(true);
   });
 });
 

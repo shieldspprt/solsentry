@@ -8,6 +8,7 @@ import { AlertRecord } from '../../lib/types';
 import { formatDate } from '../../lib/formatters';
 
 export interface AlertsViewProps {
+  /** Stored alerts, when a position store is configured. Never sample data. */
   alerts?: AlertRecord[];
 }
 
@@ -57,28 +58,56 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
         </div>
       </div>
 
-      {/* Live SSE Stream Event Feed */}
-      <Card title="Live Streaming Telemetry Engine (/api/v1/stream)" subtitle="Continuous Server-Sent Events (SSE) broadcasting oracle heartbeats and liquidation warnings">
+      {/* Live SSE Stream Event Feed — every value below comes from Pyth Hermes */}
+      <Card
+        title="Live Oracle Telemetry (/api/v1/stream)"
+        subtitle="Server-Sent Events carrying Pyth Hermes price, confidence-interval width, and publish staleness. A widening confidence band is the earliest signal of oracle-driven liquidation risk."
+      >
         {streamEvents.length === 0 ? (
           <div className="p-6 text-center text-slate-400 text-sm">
-            Connecting to live SSE stream endpoint...
+            {isStreaming ? 'Waiting for the first Pyth heartbeat…' : 'Stream unavailable — no oracle telemetry is being received.'}
           </div>
         ) : (
           <div className="space-y-3">
-            {streamEvents.map((evt, idx) => (
-              <div key={idx} className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs font-mono">
-                <div className="flex items-center gap-3">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
-                  <span className="font-bold text-cyan-300 uppercase">{evt.type}</span>
-                  <span className="text-slate-300">{evt.protocol || evt.stream || 'SolSentry Engine'}</span>
+            {streamEvents.map((evt, idx) => {
+              const unavailable = evt.type === 'source_unavailable';
+              const stressed = evt.severity && evt.severity !== 'ok';
+              return (
+                <div
+                  key={idx}
+                  className={`p-3.5 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs font-mono ${
+                    unavailable
+                      ? 'bg-slate-900/60 border-slate-700'
+                      : stressed
+                      ? 'bg-amber-950/40 border-amber-800/70'
+                      : 'bg-slate-950/80 border-slate-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-2 h-2 rounded-full inline-block ${
+                        unavailable ? 'bg-slate-500' : stressed ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400 animate-pulse'
+                      }`}
+                    />
+                    <span className={`font-bold uppercase ${unavailable ? 'text-slate-400' : stressed ? 'text-amber-300' : 'text-emerald-300'}`}>
+                      {evt.type}
+                    </span>
+                    <span className="text-slate-300">{evt.feed}</span>
+                    <span className="text-slate-500 normal-case">{evt.source}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {typeof evt.price === 'number' && <span className="text-slate-100 font-bold">${evt.price.toFixed(4)}</span>}
+                    {typeof evt.confidenceBps === 'number' && (
+                      <span className="text-slate-300">conf {evt.confidenceBps} bps</span>
+                    )}
+                    {typeof evt.stalenessMs === 'number' && (
+                      <span className="text-slate-400">age {(evt.stalenessMs / 1000).toFixed(1)}s</span>
+                    )}
+                    <span className="text-slate-500">{new Date(evt.timestamp || Date.now()).toLocaleTimeString()}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4">
-                  {evt.solUsd && <span className="text-slate-200">SOL: ${evt.solUsd.toFixed(2)}</span>}
-                  {evt.healthFactor && <span className="text-rose-400 font-bold">HF: {evt.healthFactor}</span>}
-                  <span className="text-slate-500">{new Date(evt.timestamp || Date.now()).toLocaleTimeString()}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>

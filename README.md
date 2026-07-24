@@ -4,13 +4,12 @@
 
 ### Solana AI Agent Quantitative Risk Engine & Transaction Guardrail Middleware
 
-[![Build Status](https://img.shields.io/badge/build-passing-emerald.svg?style=for-the-badge&logo=github)](https://github.com/shieldspprt/solsentry)
-[![Model Version](https://img.shields.io/badge/model--version-v3.0.0-cyan.svg?style=for-the-badge)](file:///Users/abdurrehman/Desktop/Build/AgentGate/packages/core/src/risk-scorer.ts)
+[![Model Version](https://img.shields.io/badge/model--version-v3.0.0-cyan.svg?style=for-the-badge)](packages/core/src/risk-scorer.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![MCP Ready](https://img.shields.io/badge/MCP-Server--v3.0.0-purple.svg?style=for-the-badge)](file:///Users/abdurrehman/Desktop/Build/AgentGate/packages/mcp-server)
-[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](file:///Users/abdurrehman/Desktop/Build/AgentGate/LICENSE)
+[![MCP Ready](https://img.shields.io/badge/MCP-Server--v3.0.0-purple.svg?style=for-the-badge)](packages/mcp-server)
+[![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-[Live Dashboard](https://solsentry.io/dashboard) • [API & SDK Playground](https://solsentry.io/docs) • [OpenAPI Spec](https://solsentry.io/api/v1/openapi.json) • [Security Audits](file:///Users/abdurrehman/Desktop/Build/AgentGate/docs/audits)
+[Live Dashboard](https://solsentry.io/dashboard) • [API & SDK Playground](https://solsentry.io/docs) • [OpenAPI Spec](https://solsentry.io/api/v1/openapi.json) • [Security Audits](docs/audits) • [Data Integrity Audit](docs/DATA_INTEGRITY_AUDIT.md)
 
 </div>
 
@@ -47,12 +46,12 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
 
 ## ✨ Key Capabilities
 
-- 🛡️ **Provenance-Tagged Scoring Model (v3)**: Evaluates institutional risk factors (Audit & Governance, Liquidation/Rekt, MEV & Bot Density, Whale Concentration, Pyth Oracle De-peg, Web & Dev Activity, Business Efficiency). Every metric is tagged with data source, timestamp, confidence intervals, and trend deltas.
+- 🛡️ **Provenance-Tagged Scoring Model (v3)**: Seven risk factors, each tagged with its data source, timestamp and confidence. **A factor with no live source is reported as `unmeasured` — it scores nothing and its weight is redistributed across the factors that do have data.** The response carries a `factor_coverage` object so a caller can see exactly how much of the model is grounded, and the engine withholds a directional recommendation below 50% coverage. See [Factor coverage](#-factor-coverage-what-is-actually-measured).
 - ⚡ **Transaction Pre-Execution Simulator**: Deserializes raw Solana base58/base64 transactions, replaces recent blockhashes, executes RPC simulation with `sigVerify: false`, tracks Compute Units (CU), and computes exact incoming vs. outgoing SOL/SPL token balance deltas.
 - 🚨 **Wallet Drainer Pattern Detector**: Scans instruction logs for malicious sequences (`Approve` or `SetAuthority` followed by immediate `Transfer`/`CloseAccount`, or >90% account balance drains).
 - 📉 **Stress Testing & Historical Backtesting Engine**: Simulates adverse price shocks (-10%, -20%, -35%) and historical market crash scenarios (Nov 2022 FTX, March 2023 USDC de-peg, Feb 2022 Wormhole hack) to evaluate policy guardrail protection.
 - 💳 **x402 Pay-As-You-Go USDC Micropayments (`@solsentry/payment`)**: Native Solana Pay USDC micro-payments (`X-402-Payment` header) per MCP/API call.
-- 🤖 **Autonomous Execution Engine (`@solsentry/agent-autonomy`)**: Automated de-leveraging transaction instruction generation, portfolio rebalancing, and circuit breaker halts.
+- 🤖 **Autonomy Policy Engine (`@solsentry/agent-autonomy`)**: De-leverage sizing, rebalancing plans, and circuit-breaker halts. It computes *what* to do and by how much; it does not build or sign transactions — execution stays with your agent.
 - 💻 **Official Developer CLI (`@solsentry/cli`)**: Standalone terminal binary for instant protocol risk checks, transaction simulation, and policy evaluation.
 - 📦 **Multi-Framework Integrations**:
   - `@solsentry/sdk`: Lightweight TypeScript client for custom Solana bots.
@@ -61,6 +60,33 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
   - `@solsentry/agent-kit`: Official plugin for Solana Agent Kit (`ai16z`).
   - `@solsentry/langchain`: Structured Tools for LangChain & CrewAI.
   - Model Context Protocol (MCP): 8 canonical `solsentry_*` tools over stdio & HTTP.
+
+---
+
+## 📊 Factor coverage: what is actually measured
+
+The scoring model has seven factors. Not all of them can be grounded in a public
+data source today, and SolSentry does not pretend otherwise — an unmeasured
+factor returns `score: null`, `source: "unmeasured"`, and contributes nothing.
+
+| Factor | Nominal weight | Source | Status |
+|---|---|---|---|
+| Audit & Governance | 20% | Protocol registry + published governance docs | ✅ Measured |
+| Liquidation & Rekt Risk | 20% | — | ⬜ Unmeasured — protocol-wide near-liquidation ratios need per-obligation indexing. Use `solsentry_get_position_health` with a wallet for real, position-level liquidation risk. |
+| MEV / Bot Density | 15% | — | ⬜ Unmeasured — needs per-transaction MEV classification. |
+| Whale Concentration | 15% | Helius `getTokenLargestAccounts` | ✅ Measured (protocols with a mapped token mint) |
+| Oracle Latency & Depeg | 10% | Pyth Hermes (publish staleness + confidence width) | ✅ Measured |
+| Developer Activity | 10% | GitHub REST API (commits + contributors, 30d) | ✅ Measured (set `GITHUB_TOKEN` — 60 req/hr unauthenticated is not enough for the full index) |
+| Business Efficiency | 10% | DeFiLlama (TVL, fee series, category share) | ✅ Measured |
+
+Typical live coverage is **60–70% of model weight**. Every API response and every
+protocol page states its own coverage; below 50% the engine returns `HOLD` and
+withholds a directional call rather than inferring one from too little evidence.
+
+**Positions are never simulated.** `positions/read`, `stress_test` and
+`get_position_health` operate only on real on-chain data read for a wallet
+address (Kamino obligations today; Drift pending). Without a wallet they return
+an empty set and say so — they do not return sample positions.
 
 ---
 
@@ -231,6 +257,6 @@ npm run build
 
 ## 📄 License
 
-Distributed under the MIT License. See [`LICENSE`](file:///Users/abdurrehman/Desktop/Build/AgentGate/LICENSE) for more information.
+Distributed under the MIT License. See [`LICENSE`](LICENSE) for more information.
 
 Copyright (c) 2026 SolSentry Team.

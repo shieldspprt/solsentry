@@ -22,7 +22,8 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#070a12] text-slate-100 flex flex-col justify-between">
-      <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      {/* See app/layout.tsx — JSON-LD as a child breaks hydration. */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <header className="px-8 py-6 max-w-7xl w-full mx-auto flex items-center justify-between">
         <a href="/" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-extrabold text-xl shadow-sm">
@@ -58,7 +59,9 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
-          Institutional-grade quantitative risk engine, real-time transaction simulator, developer CLI, x402 pay-as-you-go micropayments, and multi-framework AI agent plugins for Solana.
+          A provenance-tagged risk engine, real-time transaction simulator, developer CLI, x402 pay-as-you-go micropayments, and
+          multi-framework AI agent plugins for Solana. Every factor names its source — and anything we cannot measure is reported
+          as unmeasured, never filled in.
         </p>
 
         {/* CLI Command Box */}
@@ -100,9 +103,10 @@ export default function LandingPage() {
             </p>
           </Card>
 
-          <Card padding="md" title="⚡ Autonomous Execution & Guardrails">
+          <Card padding="md" title="⚡ Guardrails & De-Leverage Sizing">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Automated de-leveraging transaction generation, portfolio rebalancing, and circuit breaker halts when daily drawdown limits are triggered.
+              Policy guardrails, circuit-breaker halts on daily drawdown, and the exact collateral needed to restore a safe health
+              factor. SolSentry sizes the action; your agent or wallet executes it. It never signs on your behalf.
             </p>
           </Card>
 
@@ -118,9 +122,10 @@ export default function LandingPage() {
             </p>
           </Card>
 
-          <Card padding="md" title="📡 Real-Time SSE Streaming API (/api/v1/stream)">
+          <Card padding="md" title="📡 Live Oracle SSE Stream (/api/v1/stream)">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Server-Sent Events (SSE) streaming live oracle heartbeats, Pyth price feed de-peg alerts, and liquidation warnings directly to AI agents.
+              Server-Sent Events carrying live Pyth Hermes readings for SOL, USDC and USDT — price, confidence-interval width and
+              publish staleness. A widening confidence band is the earliest warning of oracle-driven liquidation risk.
             </p>
           </Card>
         </div>
