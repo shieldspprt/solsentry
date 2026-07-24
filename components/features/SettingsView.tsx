@@ -66,6 +66,37 @@ export const SettingsView: React.FC = () => {
         </div>
       </Card>
 
+      {/* x402 Pay-As-You-Go Micropayment Card */}
+      <Card title="x402 Pay-As-You-Go USDC Micropayments" subtitle="Pay per MCP tool call / simulation using native USDC Solana Pay transactions">
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 flex items-center justify-between text-sm">
+            <div>
+              <span className="font-bold text-slate-100 block">Pay-As-You-Go Protocol</span>
+              <span className="text-xs text-slate-400">Pass X-402-Payment transaction header with USDC transfer</span>
+            </div>
+            <Badge variant="low">Active Protocol</Badge>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 uppercase font-semibold block">Basic Queries</span>
+              <span className="font-bold text-slate-100 text-sm mt-1 block">0.10 - 0.25 USDC</span>
+              <span className="text-slate-500">get_protocol_list, check_risk</span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 uppercase font-semibold block">Analysis Tools</span>
+              <span className="font-bold text-cyan-300 text-sm mt-1 block">0.35 - 0.75 USDC</span>
+              <span className="text-slate-500">preflight, evaluate_policy</span>
+            </div>
+            <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
+              <span className="text-slate-400 uppercase font-semibold block">Full Simulation</span>
+              <span className="font-bold text-emerald-300 text-sm mt-1 block">1.50 USDC</span>
+              <span className="text-slate-500">simulate_transaction</span>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       <Card title="Subscription Tiers" subtitle="Read access is free for all users. Manager actions use x402 wallet signatures">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="p-5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-4">

@@ -15,6 +15,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'mcp', label: 'MCP Server', href: '/mcp' },
   { key: 'simulator' as any, label: 'Tx Simulator', href: '/dashboard/simulator' },
   { key: 'settings', label: 'Settings', href: '/dashboard/settings' },
+  { key: 'overview' as any, label: 'API Docs', href: '/docs' },
 ];
 
 export function isActivePath(pathname: string | null, href: string): boolean {

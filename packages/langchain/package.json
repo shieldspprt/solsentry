@@ -1,0 +1,18 @@
+{
+  "name": "@solsentry/langchain",
+  "version": "3.0.0",
+  "description": "SolSentry Structured Tools for LangChain & CrewAI Agent Frameworks",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@solsentry/sdk": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^20.17.16"
+  }
+}

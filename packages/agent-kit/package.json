@@ -1,0 +1,19 @@
+{
+  "name": "@solsentry/agent-kit",
+  "version": "3.0.0",
+  "description": "SolSentry Risk Management Plugin for Solana Agent Kit (ai16z)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@solsentry/sdk": "*",
+    "@solana/web3.js": "^1.95.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^20.17.16"
+  }
+}

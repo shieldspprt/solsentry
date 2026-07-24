@@ -23,6 +23,11 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Autonomous guardrails state
+  const [autonomyEnabled, setAutonomyEnabled] = useState(true);
+  const [healthThreshold, setHealthThreshold] = useState(1.2);
+  const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(2500);
+
   const handleCreateAgent = async () => {
     if (!name) return;
     setLoading(true);
@@ -64,12 +69,59 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-100 tracking-tight">AI Agents</h2>
-          <p className="text-sm text-slate-300 mt-1">Manage AI agents connected to SolSentry risk middleware</p>
+          <p className="text-sm text-slate-300 mt-1">Manage AI agents connected to SolSentry risk middleware & autonomous execution</p>
         </div>
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
           Register Agent
         </Button>
       </div>
+
+      {/* Autonomous Guardrails Card */}
+      <Card title="Autonomous Action & Execution Settings" subtitle="Configure automatic de-leveraging, rebalancing, and circuit breakers for AI agents">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-100 text-sm">Auto-Deleveraging</span>
+              <Badge variant={autonomyEnabled ? 'low' : 'critical'}>{autonomyEnabled ? 'Enabled' : 'Disabled'}</Badge>
+            </div>
+            <p className="text-xs text-slate-400">Trigger automatic position exit when health factor drops below threshold.</p>
+            <Input
+              label="Health Factor Trigger"
+              type="number"
+              step="0.05"
+              value={healthThreshold}
+              onChange={(e) => setHealthThreshold(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-100 text-sm">Circuit Breaker</span>
+              <Badge variant="low">Active</Badge>
+            </div>
+            <p className="text-xs text-slate-400">Pause agent trading automatically if daily drawdown exceeds USD limit.</p>
+            <Input
+              label="Daily Loss Cap (USD)"
+              type="number"
+              value={dailyLossLimitUsd}
+              onChange={(e) => setDailyLossLimitUsd(Number(e.target.value))}
+            />
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-100 text-sm">Framework Plugins</span>
+              <Badge variant="info">4 Ready</Badge>
+            </div>
+            <p className="text-xs text-slate-400">ElizaOS, Solana Agent Kit (ai16z), LangChain, & CrewAI SDK packages available.</p>
+            <div className="pt-2">
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => window.location.href = '/docs'}>
+                View Framework Integration SDKs
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {agents.length === 0 ? (
         <Card padding="lg" className="text-center py-16">
