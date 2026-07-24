@@ -10,14 +10,14 @@ export default function LandingPage() {
     name: 'SolSentry',
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Solana Network',
-    description: 'Real time risk scoring, position health monitoring, Model Context Protocol (MCP) server, and guardrail policy enforcement for Solana AI trading agents.',
+    description: 'Quantitative risk engine, CLI tool, x402 pay-as-you-go micropayments, agent autonomy, and multi-framework plugins (ElizaOS, Solana Agent Kit, LangChain, MCP) for Solana AI agents.',
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
     },
     url: siteUrl,
-    softwareRequirements: 'Model Context Protocol (MCP) or REST API',
+    softwareRequirements: 'Model Context Protocol (MCP), Solana Agent Kit, ElizaOS, or REST API',
   };
 
   return (
@@ -31,8 +31,11 @@ export default function LandingPage() {
           <span className="text-xl font-extrabold text-slate-100 tracking-tight">SolSentry</span>
         </a>
         <div className="flex items-center gap-4">
+          <a href="/docs" className="text-sm font-semibold text-slate-300 hover:text-cyan-300 transition-colors">
+            Interactive API &amp; SDK Docs
+          </a>
           <a href="/mcp" className="text-sm font-semibold text-slate-300 hover:text-cyan-300 transition-colors">
-            MCP Protocol &amp; Tools
+            MCP Protocol
           </a>
           <a href="/dashboard">
             <Button variant="primary" size="md">
@@ -44,7 +47,7 @@ export default function LandingPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-16 text-center space-y-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-          Model Context Protocol (MCP) Server &amp; PWA Enabled
+          v3.0.0 — CLI, x402 Micropayments, Agent Autonomy &amp; Backtesting
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-tight">
@@ -54,58 +57,79 @@ export default function LandingPage() {
           </span>
         </h1>
 
-        <p className="text-lg text-slate-300 max-w-2xl mx-auto leading-relaxed">
-          Open source real time risk scoring, position health monitoring, Model Context Protocol (MCP) tool execution, and guardrail policy enforcement for Solana AI trading agents.
+        <p className="text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
+          Institutional-grade quantitative risk engine, real-time transaction simulator, developer CLI, x402 pay-as-you-go micropayments, and multi-framework AI agent plugins for Solana.
         </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+        {/* CLI Command Box */}
+        <div className="max-w-xl mx-auto p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left font-mono text-xs text-cyan-300 shadow-xl">
+          <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider mb-1">Developer CLI Quickstart:</span>
+          <div>$ npm install -g @solsentry/cli</div>
+          <div className="text-slate-400">$ solsentry check kamino --details</div>
+          <div className="text-slate-400">$ solsentry simulate tx_base58_string</div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
           <a href="/dashboard">
             <Button variant="primary" size="lg">
               Launch App
             </Button>
           </a>
-          <a href="/mcp">
+          <a href="/docs">
             <Button variant="secondary" size="lg">
-              Explore MCP Settings &amp; Tools
+              Interactive API &amp; SDK Docs
             </Button>
           </a>
-          <a href="/api/v1/openapi.json" target="_blank" rel="noreferrer">
+          <a href="/mcp">
             <Button variant="secondary" size="lg">
-              OpenAPI Spec
+              MCP Tools Reference
             </Button>
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-12 text-left">
-          <Card padding="md" title="Model Context Protocol (MCP) Server">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 text-left">
+          <Card padding="md" title="🤖 Multi-Framework AI Agent Plugins">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Standardized JSON RPC 2.0 and Server Sent Events (SSE) interface at /api/v1/mcp allowing Claude Desktop, Cursor, ElizaOS, and Solana Agent Kit to autonomously query risk scores and evaluate policy rules.
+              First-class integration packages for <strong>ElizaOS</strong> (<code>@solsentry/eliza-plugin</code>), <strong>Solana Agent Kit</strong> (<code>@solsentry/agent-kit</code>), <strong>LangChain / CrewAI</strong> (<code>@solsentry/langchain</code>), and <strong>MCP Clients</strong>.
             </p>
           </Card>
 
-          <Card padding="md" title="Progressive Web App (PWA) Offline Engine">
+          <Card padding="md" title="💳 x402 Pay-As-You-Go Micropayments">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Service Worker offline state caching, prompt-controlled waiting worker updates, frozen manifest ID, and mobile installation capability for instant risk telemetry anywhere.
+              Native Solana Pay USDC micropayments header (<code>X-402-Payment</code>) per API/MCP call. No subscriptions required — pay per call on chain.
             </p>
           </Card>
 
-          <Card padding="md" title="Pre Flight Risk Checks">
+          <Card padding="md" title="⚡ Autonomous Execution & Guardrails">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Score Solana DeFi protocols in real time before your AI agent signs or sends transactions with provenance-aware safety scores from 0 to 10.
+              Automated de-leveraging transaction generation, portfolio rebalancing, and circuit breaker halts when daily drawdown limits are triggered.
             </p>
           </Card>
 
-          <Card padding="md" title="Guardrail Policy Engine">
+          <Card padding="md" title="📈 Historical Crash Backtesting Engine">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Configurable rules enforcing single transaction caps, daily volume limits, auto de-leveraging health factors, and protocol allowlists.
+              Simulate policy enforcement rules against historical Solana market crashes (Nov 2022 FTX, March 2023 USDC de-peg, Feb 2022 Wormhole hack).
+            </p>
+          </Card>
+
+          <Card padding="md" title="💻 Official Developer CLI (@solsentry/cli)">
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Standalone terminal binary providing instantaneous protocol risk scoring, transaction simulation, and policy checks right from your CLI shell.
+            </p>
+          </Card>
+
+          <Card padding="md" title="📡 Real-Time SSE Streaming API (/api/v1/stream)">
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Server-Sent Events (SSE) streaming live oracle heartbeats, Pyth price feed de-peg alerts, and liquidation warnings directly to AI agents.
             </p>
           </Card>
         </div>
       </main>
 
       <footer className="px-8 py-6 border-t border-slate-800/80 max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-        <span>SolSentry Risk Engine 2026. Open Source MIT License.</span>
+        <span>SolSentry Quantitative Risk Engine v3.0.0. Open Source MIT License.</span>
         <div className="flex items-center gap-6">
+          <a href="/docs" className="text-cyan-400 hover:underline">API &amp; SDK Playground</a>
           <a href="/mcp" className="text-cyan-400 hover:underline">MCP Protocol Guide</a>
           <span className="text-cyan-400 font-semibold">PWA Ready &amp; Live</span>
         </div>
