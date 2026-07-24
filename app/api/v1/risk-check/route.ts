@@ -63,6 +63,22 @@ export async function POST(request: NextRequest) {
     breakdown.trend = trend;
     void recordSnapshot(protocolSlug, breakdown, tvlUsd);
 
+    try {
+      const supabase = getSupabaseAdmin();
+      await supabase.from('risk_checks').insert({
+        protocol_slug: protocolSlug,
+        action: 'risk_check',
+        amount_usd: 0,
+        risk_score: breakdown.composite_risk_score,
+        risk_level: breakdown.risk_tier,
+        risk_factors: factorScores,
+        recommendation: breakdown.action_recommendation,
+        response_time_ms: 15,
+      });
+    } catch {
+      // Non-blocking telemetry insert
+    }
+
     const headers = new Headers();
     headers.set('X-Content-Type-Options', 'nosniff');
     headers.set('X-Frame-Options', 'DENY');

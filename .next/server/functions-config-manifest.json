@@ -1,1 +1,1 @@
-{"version":1,"functions":{"/dashboard/simulator":{},"/dashboard/protocols/[slug]":{},"/api/v1/stream":{},"/mcp":{}}}
+{"version":1,"functions":{"/dashboard":{},"/dashboard/simulator":{},"/api/v1/stream":{},"/mcp":{},"/dashboard/protocols/[slug]":{}}}
