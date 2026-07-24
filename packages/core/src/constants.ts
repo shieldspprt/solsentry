@@ -31,16 +31,13 @@ export const RISK_MODEL_VERSION = VERSION_FROM_LIB;
 // Composite weights per factor (sum = 1.0). Single source of truth used by
 // both the scorer and the documentation/UI so weights never drift apart.
 export const FACTOR_WEIGHTS = {
-  audit_governance: 0.15,
-  liquidation_rekt: 0.15,
-  mev_bot_density: 0.12,
-  whale_concentration: 0.12,
+  audit_governance: 0.2,
+  liquidation_rekt: 0.2,
+  mev_bot_density: 0.15,
+  whale_concentration: 0.15,
   oracle_depeg: 0.1,
-  web_community: 0.08,
-  business_efficiency: 0.08,
-  smart_money_flows: 0.1,
-  social_sentiment_velocity: 0.05,
-  validator_concentration: 0.05,
+  web_community: 0.1,
+  business_efficiency: 0.1,
 } as const;
 
 // Confidence assigned to a factor by the provenance of its driving metric.
