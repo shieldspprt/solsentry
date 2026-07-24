@@ -15,6 +15,7 @@ export const PROTOCOL_TOKEN_MINTS: Record<string, string> = {
   marinade: 'MNDEFzGvMt87ueuHvVU9VcTqsAP5b3fTGPsHuuPA5ey',
   kamino: 'KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS',
   meteora: 'METAewgxyPbgwsseH8T16a39CQ5VyVxZi9zXiDPY18m',
+  pumpfun: 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn',
 };
 
 export interface HolderConcentrationData {

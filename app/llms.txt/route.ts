@@ -7,7 +7,7 @@ SolSentry is an open source safety middleware, quantitative risk engine, and pol
 
 ## Scoring model (v3): grounded and honest
 
-Every factor carries its data source, timestamp, and confidence. Live signals are pulled from Pyth (oracle confidence interval + publish staleness), Helius (on-chain token holder concentration), DeFiLlama (TVL, fee series, category share), and the GitHub API (commits and contributors, 30d).
+Every factor carries its data source, timestamp, and confidence. Live signals are pulled from Pyth (oracle confidence interval + publish staleness), Helius (on-chain token holder concentration), DeFiLlama (TVL, fee series, category share), the GitHub API (commits and contributors, 30d), and the Jupiter Token API (organic-activity score, organic vs bot/arbitrage volume split, token mint/freeze authority status).
 
 Where a factor has no live source it is returned as measured: false, score: null, source: "unmeasured". It contributes NOTHING to the composite and its weight is redistributed across the factors that do have data. SolSentry does not substitute a default value for a missing measurement.
 
@@ -18,7 +18,9 @@ Read factor_coverage before trusting the score:
 
 Below 50% weight coverage the engine returns agentDecision.action = "HOLD" and withholds a directional recommendation rather than inferring one from too little evidence. Typical live coverage is 60-70%.
 
-Currently unmeasured for all protocols: liquidation_rekt (protocol-wide near-liquidation ratios need per-obligation indexing) and mev_bot_density (needs per-transaction MEV classification). For real liquidation risk, call solsentry_get_position_health with a walletAddress — that path reads actual on-chain positions.
+Currently unmeasured for all protocols: liquidation_rekt (protocol-wide near-liquidation ratios need per-obligation indexing). For real liquidation risk, call solsentry_get_position_health with a walletAddress — that path reads actual on-chain positions.
+
+Scope note on the mev_bot_density factor (labelled "Market Integrity"): it scores Jupiter's organic-activity score for the protocol's GOVERNANCE TOKEN market — how much of that token's volume is genuine rather than bot, arbitrage or wash flow, plus whether mint and freeze authority are disabled. It is a proxy for token manipulation and dump risk. It is NOT a measure of sandwich or MEV risk on a swap routed through the protocol. Do not read it as one.
 
 Direction is explicit: safetyScore is 0..10 where HIGHER = SAFER. Treat the confidence band, not the point score, as the decision input.
 

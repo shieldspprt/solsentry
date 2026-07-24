@@ -14,6 +14,7 @@ const SOURCE_LABEL: Record<string, string> = {
   pyth: 'Pyth Oracle',
   helius: 'Helius RPC',
   github: 'GitHub API',
+  jupiter: 'Jupiter Token API',
   onchain: 'Solana Onchain',
   defillama: 'DeFiLlama',
   jito: 'Jito MEV',

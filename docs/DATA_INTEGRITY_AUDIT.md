@@ -350,6 +350,53 @@ requested age, or the delta is null and the direction is `unknown`.
 
 ---
 
+## Round 3 — grounding Market Integrity with the Jupiter Token API
+
+A Jupiter Portal key was supplied, which unlocked the Token API v2. That API classifies each
+trade as organic or non-organic (bot, arbitrage, market-maker, wash) and publishes a calibrated
+0–100 `organicScore` per token — a real measurement of the signal this engine originally faked
+as a hardcoded `bot_density_pct`.
+
+**Independent validation of an existing fetcher.** Jupiter's `audit.topHoldersPercentage` for
+Kamino reads 54.4%; the Helius `getTokenLargestAccounts` path independently computes 54.4%. Two
+unrelated sources agreeing to the decimal is good evidence the whale-concentration factor is
+correct. Jupiter is now a fallback for it when the RPC is unavailable — which it already is for
+Jupiter's and Raydium's own tokens.
+
+**Why the obvious formula was rejected.** The tempting mapping is
+`bot_density = 100 − organic_volume_%`, fed to the existing `10 − pct/10` curve. Measured across
+the tracked protocols, organic volume runs **2.5% (Meteora) to 37% (Marinade)** — so that formula
+scores every protocol between 0.3 and 3.7 out of 10. On any liquid token most volume genuinely
+is market-maker and arbitrage flow; reporting the market norm as near-total risk would be a
+fabrication in the opposite direction, and a factor that says "everything is terrible" carries no
+decision value. Jupiter's calibrated score is used instead and spreads 5.8–9.7 across the same set.
+
+**Scope is stated everywhere it appears.** The factor measures the *governance token's* market,
+not the protocol's transaction flow. It is labelled "Market Integrity", its rationale line ends
+with "Measures the governance token market, not swap-level sandwich risk", and `llms.txt` tells
+agents explicitly not to read it as sandwich risk. The `mev_bot_density` key is retained for API
+compatibility.
+
+Also newly surfaced as real warnings: `mintAuthorityDisabled` and `freezeAuthorityDisabled`. A
+live freeze authority means the issuer can freeze holder balances. All nine currently report
+disabled, and a `null` (Jupiter did not report it) is kept distinct from `false` rather than
+defaulting to safe.
+
+**Coverage: 4/7 → 6/7 factors (55% → 80% of model weight)** for 8 of 9 protocols, measured while
+GitHub had request budget. Pump.fun rose to 5/7 after its PUMP mint (`pumpCmXq…9Dfn`, verified
+on-chain: 847B supply, 126k holders) was added to the token map.
+
+**GitHub is now the binding constraint, and it is a hard one.** A later run of the same endpoint
+returned 5/7 and 4/7 across the index. The cause was not a regression: `sourcesUnavailable` named
+`github:commits` on every single protocol, and `api.github.com/rate_limit` confirmed
+`{"limit": 60, "remaining": 0}`. Scoring the index costs ~36 unauthenticated requests, so two
+scorings inside an hour exhaust the budget. **Set `GITHUB_TOKEN`** (5,000/hr) or Developer
+Activity will keep dropping in and out of the composite. This is exactly the diagnosis the
+`sourcesUnavailable` field exists to make possible — before this audit the same failure would
+have silently produced a confident score built on a constant.
+
+---
+
 ## Outcome
 
 All items above are implemented. `tsc --noEmit` clean, `next build` clean, 31/31 tests passing
@@ -385,10 +432,12 @@ Pump.fun currently sits at 2/7 coverage and correctly returns `HOLD` rather than
 
 ### Known limitations (documented, not hidden)
 
-1. **`liquidation_rekt` and `mev_bot_density` are unmeasured for every protocol.** They are
-   shown greyed out with the reason, excluded from the composite, and listed in
-   `factor_coverage.unmeasured`. Grounding them needs per-obligation indexing and MEV
-   transaction classification respectively.
+1. **`liquidation_rekt` is unmeasured for every protocol** — protocol-wide near-liquidation
+   ratios need per-obligation indexing. Shown greyed out with the reason, excluded from the
+   composite, and listed in `factor_coverage.unmeasured`. Real liquidation risk is available
+   per-wallet through the on-chain position scan.
+   `mev_bot_density` was grounded in round 3 (see below) and relabelled **Market Integrity**;
+   its scope is the governance token's market, not swap-level sandwich risk.
 2. **Category market share mixes parent and child scope.** The numerator is a protocol's
    DeFiLlama *parent* TVL, which for Jupiter aggregates Lend, Perps and Staked SOL; the
    denominator is one category's Solana total. Jupiter therefore reads 89.2% of "Solana DEX

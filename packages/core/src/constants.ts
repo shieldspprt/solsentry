@@ -48,6 +48,9 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   defillama: 0.85,
   github: 0.85,
   jito: 0.85,
+  // Jupiter's organicScore is a derived index rather than a raw reading, so it
+  // is trusted slightly below a direct measurement of an observable quantity.
+  jupiter: 0.85,
   // Published governance parameters: accurate when read, but a static document
   // rather than a live measurement, so trusted less than an API reading.
   protocol_docs: 0.7,

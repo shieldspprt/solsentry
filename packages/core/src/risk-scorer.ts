@@ -206,25 +206,45 @@ export function computeProtocolRisk(
     );
   }
 
-  // --- MEV / bot density ---
-  const botPct = metrics.bot_density_pct;
-  if (botPct != null) {
-    if (botPct > 50.0) warnings.push(`High bot density (${botPct}% bot volume ratio, sandwich attack risk)`);
+  // --- Market integrity (organic vs bot/wash volume, Jupiter) ---
+  // Jupiter's organicScore is a calibrated 0-100 measure of how much of a
+  // token's market is genuine rather than bot, arbitrage or wash flow.
+  //
+  // Deliberately NOT scored as (100 - organic volume %). Across the tracked
+  // protocols organic volume runs 2.5%-37%, because on any liquid token most
+  // volume is market-maker and arbitrage flow. Reading that as "96% bot
+  // density = 0.4/10" would flag the market norm as extreme danger. The
+  // calibrated score discriminates; the raw ratio does not.
+  const integrity = metrics.token_market_integrity;
+  const organicScore = integrity?.organic_score ?? null;
+  if (organicScore != null) {
+    if (integrity?.freeze_authority_disabled === false) {
+      warnings.push('Governance token freeze authority is still enabled — the issuer can freeze holder balances');
+    }
+    if (integrity?.mint_authority_disabled === false) {
+      warnings.push('Governance token mint authority is still enabled — supply can be inflated');
+    }
+    if (organicScore < 40) {
+      warnings.push(`Low organic market activity (Jupiter organic score ${organicScore}/100)`);
+    }
+    const orgVol = integrity?.organic_volume_pct_24h;
     addMeasured(
       'mev_bot_density',
-      'MEV / Bot Density',
-      10.0 - botPct / 10,
-      botPct,
-      '%',
-      `${botPct}% of volume is bot-driven — sandwich/MEV exposure.`,
-      'jito'
+      'Market Integrity',
+      organicScore / 10,
+      organicScore,
+      'score/100',
+      `Jupiter organic score ${organicScore}/100 (${integrity?.organic_score_label || 'unlabelled'})` +
+        (orgVol != null ? `; ${orgVol}% of 24h governance-token volume was organic rather than bot/arbitrage flow` : '') +
+        '. Measures the governance token market, not swap-level sandwich risk.',
+      'jupiter'
     );
   } else {
     addUnmeasured(
       'mev_bot_density',
-      'MEV / Bot Density',
-      '%',
-      'Bot-share of volume requires per-transaction classification against a MEV dataset; not currently measured.'
+      'Market Integrity',
+      'score/100',
+      'No governance token mint mapped, or the Jupiter Token API did not return market data.'
     );
   }
 

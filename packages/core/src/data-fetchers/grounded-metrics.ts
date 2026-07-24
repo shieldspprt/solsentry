@@ -5,6 +5,7 @@ import { fetchTokenHolderConcentration } from './helius';
 import { fetchProtocolFees, fetchProtocolTvl } from './defillama';
 import { fetchDeveloperActivity } from './github';
 import { fetchCategoryTvl } from './defillama-category';
+import { fetchTokenMarketIntegrity } from './jupiter';
 
 export interface GroundedMetricsResult {
   metrics: InstitutionalRiskMetrics;
@@ -27,13 +28,14 @@ export async function buildGroundedMetrics(
   const sourcesLive: string[] = [];
   const sourcesUnavailable: string[] = [];
 
-  const [oracle, holders, fees, tvl, devActivity, categoryTvl] = await Promise.all([
+  const [oracle, holders, fees, tvl, devActivity, categoryTvl, integrity] = await Promise.all([
     fetchOracleHealth('SOL_USD'),
     fetchTokenHolderConcentration(slug),
     fetchProtocolFees(slug),
     fetchProtocolTvl(slug),
     fetchDeveloperActivity(slug),
     protocol.category ? fetchCategoryTvl(protocol.category) : Promise.resolve(null),
+    fetchTokenMarketIntegrity(slug),
   ]);
 
   // --- Oracle health (Pyth) ---
@@ -45,13 +47,39 @@ export async function buildGroundedMetrics(
     sourcesUnavailable.push('pyth:oracle');
   }
 
-  // --- Whale concentration (Helius token holders) ---
+  // --- Whale concentration ---
+  // Preferred: a direct on-chain read (getTokenLargestAccounts). Jupiter
+  // publishes the same figure in its audit block and the two agree closely
+  // (Kamino: 54.4% from both), so it serves as a fallback when the RPC is
+  // unavailable rather than dropping the factor entirely.
   if (holders) {
     base.whale_concentration_pct = holders.top10_pct;
     provenance.whale_concentration = { source: 'helius', as_of: holders.as_of, confidence: 0.9 };
     sourcesLive.push('helius:holders');
+  } else if (integrity?.top_holders_pct != null) {
+    base.whale_concentration_pct = integrity.top_holders_pct;
+    provenance.whale_concentration = { source: 'jupiter', as_of: integrity.as_of, confidence: 0.8 };
+    sourcesLive.push('jupiter:holders');
   } else {
     sourcesUnavailable.push('helius:holders');
+  }
+
+  // --- Market integrity (Jupiter organic-activity score) ---
+  if (integrity?.organic_score != null) {
+    base.token_market_integrity = {
+      organic_score: integrity.organic_score,
+      organic_score_label: integrity.organic_score_label,
+      organic_volume_pct_24h: integrity.organic_volume_pct_24h,
+      holder_count: integrity.holder_count,
+      liquidity_usd: integrity.liquidity_usd,
+      mint_authority_disabled: integrity.mint_authority_disabled,
+      freeze_authority_disabled: integrity.freeze_authority_disabled,
+      as_of: integrity.as_of,
+    };
+    provenance.mev_bot_density = { source: 'jupiter', as_of: integrity.as_of, confidence: 0.85 };
+    sourcesLive.push('jupiter:market-integrity');
+  } else {
+    sourcesUnavailable.push('jupiter:market-integrity');
   }
 
   // --- Developer activity (GitHub) ---

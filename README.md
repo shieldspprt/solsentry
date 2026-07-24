@@ -73,13 +73,15 @@ factor returns `score: null`, `source: "unmeasured"`, and contributes nothing.
 |---|---|---|---|
 | Audit & Governance | 20% | Protocol registry + published governance docs | ✅ Measured |
 | Liquidation & Rekt Risk | 20% | — | ⬜ Unmeasured — protocol-wide near-liquidation ratios need per-obligation indexing. Use `solsentry_get_position_health` with a wallet for real, position-level liquidation risk. |
-| MEV / Bot Density | 15% | — | ⬜ Unmeasured — needs per-transaction MEV classification. |
+| Market Integrity | 15% | Jupiter Token API (organic-activity score) | ✅ Measured — scores the **governance token's** market: organic vs bot/arbitrage volume, plus mint/freeze authority status. A proxy for manipulation and dump risk, **not** for sandwich risk on a swap through the protocol. |
 | Whale Concentration | 15% | Helius `getTokenLargestAccounts` | ✅ Measured (protocols with a mapped token mint) |
 | Oracle Latency & Depeg | 10% | Pyth Hermes (publish staleness + confidence width) | ✅ Measured |
 | Developer Activity | 10% | GitHub REST API (commits + contributors, 30d) | ✅ Measured (set `GITHUB_TOKEN` — 60 req/hr unauthenticated is not enough for the full index) |
 | Business Efficiency | 10% | DeFiLlama (TVL, fee series, category share) | ✅ Measured |
 
-Typical live coverage is **60–70% of model weight**. Every API response and every
+Live coverage is **80% of model weight** (6 of 7 factors) with `GITHUB_TOKEN` set. Without it,
+GitHub's 60 req/hr unauthenticated limit is exhausted by roughly two full index scorings and
+Developer Activity drops to unmeasured, taking coverage to **70%**. Every API response and every
 protocol page states its own coverage; below 50% the engine returns `HOLD` and
 withholds a directional call rather than inferring one from too little evidence.
 

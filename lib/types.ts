@@ -91,9 +91,26 @@ export interface AgentDecision {
 // Every field is nullable by design. `null` is the honest representation of a
 // metric SolSentry cannot currently observe, and the scorer excludes null-driven
 // factors from the composite instead of scoring them off a constant.
+// Market integrity of a protocol's governance token, from Jupiter's Token API.
+// Scope: the TOKEN's market, not the protocol's own transaction flow.
+export interface TokenMarketIntegrity {
+  /** Jupiter's calibrated 0-100 organic-activity score. */
+  organic_score: number | null;
+  organic_score_label: string | null;
+  /** Share of 24h token volume classified as organic rather than bot/arb flow. */
+  organic_volume_pct_24h: number | null;
+  holder_count: number | null;
+  liquidity_usd: number | null;
+  /** null means Jupiter did not report the flag — not that it is disabled. */
+  mint_authority_disabled: boolean | null;
+  freeze_authority_disabled: boolean | null;
+  as_of: string | null;
+}
+
 export interface InstitutionalRiskMetrics {
-  /** % of volume that is bot-driven. No public source yet — currently null. */
+  /** Deprecated: never had a source. Superseded by token_market_integrity. */
   bot_density_pct: number | null;
+  token_market_integrity?: TokenMarketIntegrity;
   /** % of open value near its liquidation threshold. No public source yet. */
   near_liquidation_ratio_pct: number | null;
   /** Top-10 holder share of token supply (Helius). */
@@ -139,6 +156,7 @@ export type DataSource =
   | 'pyth'
   | 'helius'
   | 'github'
+  | 'jupiter'
   | 'onchain'
   | 'jito'
   | 'derived'
