@@ -288,6 +288,68 @@ composite. A missing number is a feature — a fabricated one is a liability.
 
 ---
 
+## Round 2 — findings after the Supabase key was rotated
+
+Restoring the datastore exposed a second layer that a dead database had been hiding.
+
+### R1 — 6 of 11 program IDs did not exist on Solana mainnet
+
+The protocol page renders `program_ids` as clickable Solscan links under "Program Verification".
+Checked every one with `getAccountInfo` against mainnet-beta:
+
+| Protocol | Shipped ID | Result | Corrected to |
+|---|---|---|---|
+| kamino | `6LtLMovXri1…8f65` | **does not exist** | `KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD` |
+| drift | `dRifT22bwewy…Y467` | **does not exist** | `dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH` |
+| orca | `whirL2aR24W1…W5k` | **does not exist** | `whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc` |
+| jito | `Jito4APyf642…u14` | **does not exist** | `SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy` |
+| marinade | `MarBGuBtVETK…B6u` | **does not exist** | `MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD` |
+
+An agent verifying that a transaction targets the expected program would have been checking
+against an address that holds no program at all. All nine are now verified executable, and
+`scripts/seed-protocols.js` refuses to seed if any ID fails that check.
+
+### R2 — Two divergent protocol registries
+
+`lib/default-protocols.ts` and `scripts/seed-protocols.js` each carried their own hardcoded
+protocol list, with **different program IDs for the same protocol** (orca, drift, marinade, jito)
+and their own hardcoded `risk_score` values — which is where the database's stale scores came
+from. Both now read `lib/protocol-registry.json`, which holds identity only: no TVL, no risk
+score, no telemetry.
+
+### R3 — The snapshot table never existed, and could not have been created
+
+`scripts/migrate.js` only applied `schema.sql` and `rls-policies.sql`. It never applied
+`snapshots.sql` or `push.sql`, so `protocol_metric_snapshots` and `push_subscriptions` were
+absent from the database — trend history could never accumulate.
+
+Had it run, it would have failed anyway:
+
+```sql
+CREATE UNIQUE INDEX ... ON protocol_metric_snapshots(protocol_slug, date_trunc('hour', captured_at));
+```
+
+`date_trunc()` over a `timestamptz` is STABLE, not IMMUTABLE, so Postgres rejects it in an index
+expression. And `recordSnapshot` upserted with `onConflict: 'protocol_slug,captured_at'`, which
+matched no constraint — so every write would have failed, silently, inside a best-effort
+`try/catch`. Replaced with an explicit `captured_hour` column and a real unique constraint;
+verified idempotent by running sync twice in the same hour (9 rows, not 18).
+
+### R4 — A 20-minute-old snapshot was reported as a 7-day trend
+
+With snapshots finally writing, the first risk-check returned:
+
+```json
+{"composite_7d_delta": 0.9, "direction": "improving", "snapshots_available": 1}
+```
+
+from a single snapshot taken 20 minutes earlier. `nearest()` picked the closest row at *any*
+distance, so one fresh row stood in for both the 7-day and 30-day reference and the UI rendered
+"Improving". Reference snapshots must now fall within ±2 days (7d) or ±7 days (30d) of the
+requested age, or the delta is null and the direction is `unknown`.
+
+---
+
 ## Outcome
 
 All items above are implemented. `tsc --noEmit` clean, `next build` clean, 31/31 tests passing
@@ -339,8 +401,9 @@ Pump.fun currently sits at 2/7 coverage and correctly returns `HOLD` rather than
    `lib/default-protocols.ts` are maintained by hand and the dates are from 2023–2024.
    They are tagged `protocol_docs` (confidence 0.7), not presented as live measurements,
    but they should be re-verified and given source URLs.
-5. **The Supabase service-role key is still invalid.** Rotating it needs the operator. Until
-   then the app says so, in the UI and in API responses, instead of substituting constants.
+5. **Datastore is live.** The service-role key was rotated by the operator; migrations applied,
+   9 protocols seeded with verified program IDs, and snapshots now write hourly. Trend will read
+   `unknown` until ~7 days of history accumulate, which is the correct answer until then.
 6. **`agent-autonomy` does not build transactions.** Its `executeDeleveraging` carries a
    `// In production, this would build and send actual transactions` comment and returns an
    estimate. README and landing copy now describe it as sizing-and-policy, not execution.

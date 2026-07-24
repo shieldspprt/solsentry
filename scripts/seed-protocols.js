@@ -1,5 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
+const registry = require('../lib/protocol-registry.json');
 require('dotenv').config({ path: '.env.local' });
+
+// Seeds protocol IDENTITY only — slug, name, category, program IDs, audit
+// record. It deliberately does not write tvl_usd or risk_score: those are
+// measured at request time from DeFiLlama and the scorer. This script used to
+// carry its own protocol list with its own hardcoded risk scores, which drifted
+// from lib/ and shipped program IDs that do not exist on mainnet.
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -9,99 +16,67 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
 
-const initialProtocols = [
-  {
-    slug: 'kamino',
-    name: 'Kamino Finance',
-    category: 'lending',
-    program_ids: ['6LtLMovXri1PGVYrS4UfLS5WZZKPv3779e5v94vL8f65'],
-    audit_status: 'audited',
-    auditors: ['OtterSec', 'Neodyme'],
-    oracle_provider: 'pyth',
-    risk_score: 8.5,
-  },
-  {
-    slug: 'drift',
-    name: 'Drift Protocol',
-    category: 'perps',
-    program_ids: ['dRifTKGMS62nXiXYdYXxQPhuEGfqySUR36v232w3W6x'],
-    audit_status: 'audited',
-    auditors: ['OtterSec', 'Halborn'],
-    oracle_provider: 'pyth',
-    risk_score: 8.2,
-  },
-  {
-    slug: 'jupiter',
-    name: 'Jupiter',
-    category: 'dex',
-    program_ids: ['JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4'],
-    audit_status: 'audited',
-    auditors: ['OtterSec'],
-    oracle_provider: 'pyth',
-    risk_score: 9.2,
-  },
-  {
-    slug: 'orca',
-    name: 'Orca',
-    category: 'dex',
-    program_ids: ['whirLbxic2xrFuFvyfuNhUfcvX4WzL3Hyq89nAgyXAL'],
-    audit_status: 'audited',
-    auditors: ['OtterSec', 'Neodyme'],
-    oracle_provider: 'pyth',
-    risk_score: 9.0,
-  },
-  {
-    slug: 'raydium',
-    name: 'Raydium',
-    category: 'dex',
-    program_ids: ['675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8'],
-    audit_status: 'audited',
-    auditors: ['OtterSec'],
-    oracle_provider: 'pyth',
-    risk_score: 8.0,
-  },
-  {
-    slug: 'meteora',
-    name: 'Meteora',
-    category: 'dex',
-    program_ids: ['LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo'],
-    audit_status: 'audited',
-    auditors: ['OtterSec'],
-    oracle_provider: 'pyth',
-    risk_score: 8.4,
-  },
-  {
-    slug: 'marinade',
-    name: 'Marinade Finance',
-    category: 'staking',
-    program_ids: ['MarBGuTtEwyd1bcsQmAcvM5ftJLrgSpM9vC6xWwa1Bu'],
-    audit_status: 'audited',
-    auditors: ['OtterSec', 'Neodyme'],
-    oracle_provider: 'pyth',
-    risk_score: 9.4,
-  },
-  {
-    slug: 'jito',
-    name: 'Jito',
-    category: 'staking',
-    program_ids: ['Jito4APyf642JPZPx3hGc6WWJ8zPKtRbRs4gF3f14kr'],
-    audit_status: 'audited',
-    auditors: ['OtterSec'],
-    oracle_provider: 'pyth',
-    risk_score: 9.1,
-  },
-];
+const RPC = process.env.NEXT_PUBLIC_HELIUS_RPC_URL || process.env.HELIUS_RPC_URL || 'https://api.mainnet-beta.solana.com';
+
+// A program ID that does not resolve to an executable account is worse than no
+// data: the protocol page renders it as a Solscan "verification" link, and an
+// agent checking a transaction against it would be verifying against nothing.
+async function assertProgramsExist(protocols) {
+  const bad = [];
+  for (const p of protocols) {
+    for (const id of p.program_ids) {
+      try {
+        const res = await fetch(RPC, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAccountInfo', params: [id, { encoding: 'base64' }] }),
+        });
+        const value = (await res.json())?.result?.value;
+        if (!value) bad.push(`${p.slug}: ${id} — account does not exist`);
+        else if (!value.executable) bad.push(`${p.slug}: ${id} — exists but is not executable`);
+        else console.log(`  ok  ${p.slug.padEnd(10)} ${id}`);
+      } catch (err) {
+        bad.push(`${p.slug}: ${id} — RPC check failed (${err.message})`);
+      }
+    }
+  }
+  return bad;
+}
 
 async function seed() {
-  console.log('Seeding protocols into Supabase...');
-  const { data, error } = await supabase.from('protocols').upsert(initialProtocols, { onConflict: 'slug' });
+  const protocols = registry.protocols;
+
+  console.log(`Verifying ${protocols.length} protocols' program IDs against mainnet...`);
+  const bad = await assertProgramsExist(protocols);
+  if (bad.length > 0) {
+    console.error('\nRefusing to seed — these program IDs are not live programs on mainnet:');
+    bad.forEach((b) => console.error(`  FAIL ${b}`));
+    process.exit(1);
+  }
+
+  const rows = protocols.map((p) => ({
+    slug: p.slug,
+    name: p.name,
+    category: p.category,
+    program_ids: p.program_ids,
+    audit_status: p.audit_status,
+    auditors: p.auditors,
+    audit_date: p.audit_date,
+    oracle_provider: p.oracle_provider,
+  }));
+
+  console.log(`\nSeeding ${rows.length} protocols into Supabase...`);
+  const { error } = await supabase.from('protocols').upsert(rows, { onConflict: 'slug' });
   if (error) {
     console.error('Seeding failed:', error.message);
-  } else {
-    console.log('Successfully seeded protocols into Supabase!');
+    process.exit(1);
   }
+
+  const { count } = await supabase.from('protocols').select('*', { count: 'exact', head: true });
+  console.log(`Done. protocols table now holds ${count} rows.`);
+  console.log('Run POST /api/v1/sync to populate live TVL and grounded risk scores.');
 }
 
 seed();

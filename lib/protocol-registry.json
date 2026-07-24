@@ -1,0 +1,104 @@
+{
+  "_comment": "Single source of truth for protocol identity. Imported by lib/default-protocols.ts (app) and scripts/seed-protocols.js (DB seed) so the two can never diverge — they previously held separate lists with conflicting program IDs, 6 of which did not exist on mainnet. Every program_id below was verified executable via getAccountInfo on mainnet-beta on 2026-07-24. This file holds identity only: no TVL, no risk score, no telemetry. Those are measured at runtime.",
+  "protocols": [
+    {
+      "id": "57319386-ab29-4649-a848-366416ca079d",
+      "slug": "jupiter",
+      "name": "Jupiter",
+      "category": "dex",
+      "program_ids": ["JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec", "Offensive Security"],
+      "audit_date": "2024-01-15",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca079e",
+      "slug": "kamino",
+      "name": "Kamino Finance",
+      "category": "lending",
+      "program_ids": ["KLend2g3cP87fffoy8q1mQqGKjrxjC8boSyAYavgmjD"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec", "Neodyme"],
+      "audit_date": "2024-02-10",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a5",
+      "slug": "pumpfun",
+      "name": "Pump.fun",
+      "category": "launchpad",
+      "program_ids": ["6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec"],
+      "audit_date": "2024-03-10",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca079f",
+      "slug": "raydium",
+      "name": "Raydium",
+      "category": "dex",
+      "program_ids": ["675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec", "Kudelski"],
+      "audit_date": "2023-11-20",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a0",
+      "slug": "jito",
+      "name": "Jito",
+      "category": "staking",
+      "program_ids": ["SPoo1Ku8WFXoNDMHPsrGSTSG1Y47rzgn41SLUNakuHy"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec"],
+      "audit_date": "2024-03-01",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a1",
+      "slug": "marinade",
+      "name": "Marinade Finance",
+      "category": "staking",
+      "program_ids": ["MarBmsSgKXdrN1egZf5sqe1TMai9K1rChYNDJgjq7aD"],
+      "audit_status": "audited",
+      "auditors": ["Ackee Blockchain", "Neodyme"],
+      "audit_date": "2023-12-05",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a2",
+      "slug": "meteora",
+      "name": "Meteora",
+      "category": "dex",
+      "program_ids": ["LBUZKhRxPF3XUpBCjp4YzTKgLccjZhTSDM9YuVaPwxo"],
+      "audit_status": "audited",
+      "auditors": ["Offensive Security"],
+      "audit_date": "2024-01-28",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a3",
+      "slug": "orca",
+      "name": "Orca",
+      "category": "dex",
+      "program_ids": ["whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"],
+      "audit_status": "audited",
+      "auditors": ["Kudelski Security"],
+      "audit_date": "2023-09-14",
+      "oracle_provider": "pyth"
+    },
+    {
+      "id": "57319386-ab29-4649-a848-366416ca07a4",
+      "slug": "drift",
+      "name": "Drift Protocol",
+      "category": "perps",
+      "program_ids": ["dRiftyHA39MWEi3m9aunc5MzRF1JYuBsbn6VPcn33UH"],
+      "audit_status": "audited",
+      "auditors": ["OtterSec", "Halborn"],
+      "audit_date": "2024-02-25",
+      "oracle_provider": "pyth"
+    }
+  ]
+}

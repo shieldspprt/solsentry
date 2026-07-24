@@ -4,6 +4,15 @@ import { InstitutionalFactorsBreakdown, MetricTrend, FactorKey } from './types';
 // Persist a computed risk breakdown as a time-series snapshot. Idempotent per
 // protocol per hour (unique index handles dedupe). Best-effort: failures never
 // break the request path.
+// The hour bucket a snapshot belongs to. Written explicitly rather than derived
+// in an index, because date_trunc() over a timestamptz is not IMMUTABLE and so
+// cannot back a unique constraint (see sql/snapshots.sql).
+function hourBucket(d: Date = new Date()): string {
+  const b = new Date(d);
+  b.setUTCMinutes(0, 0, 0);
+  return b.toISOString();
+}
+
 export async function recordSnapshot(
   slug: string,
   breakdown: InstitutionalFactorsBreakdown,
@@ -22,11 +31,18 @@ export async function recordSnapshot(
         oracle_depeg_score: breakdown.oracle_depeg_score,
         web_community_score: breakdown.web_community_score,
         business_efficiency_score: breakdown.business_efficiency_score,
+        // Persisted so a later trend read can tell a genuine risk move apart
+        // from a coverage change (a factor going live shifts the composite).
+        weight_covered_pct: breakdown.factor_coverage?.weight_covered_pct ?? null,
         tvl_usd: tvlUsd,
         confidence: breakdown.confidence?.overall ?? null,
         model_version: breakdown.model_version ?? null,
+        captured_hour: hourBucket(),
       },
-      { onConflict: 'protocol_slug,captured_at', ignoreDuplicates: true }
+      // Must name a real unique constraint. The previous target
+      // 'protocol_slug,captured_at' matched no constraint, so every upsert
+      // failed — silently, because the whole call is wrapped best-effort.
+      { onConflict: 'protocol_slug,captured_hour', ignoreDuplicates: true }
     );
   } catch {
     // best-effort only
@@ -55,7 +71,18 @@ const FACTOR_COLUMNS: Record<FactorKey, keyof SnapshotRow> = {
   business_efficiency: 'business_efficiency_score',
 };
 
-function nearest(rows: SnapshotRow[], targetMs: number): SnapshotRow | null {
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// How far a snapshot may sit from the requested age and still stand in for it.
+// Without a bound, `nearest` returns the closest row at any distance — so a
+// single snapshot taken 20 minutes ago became the "7 days ago" reference and
+// the engine reported "improving, +0.9 over 7d" from 20 minutes of history.
+const TOLERANCE_MS: Record<'7d' | '30d', number> = {
+  '7d': 2 * DAY_MS,
+  '30d': 7 * DAY_MS,
+};
+
+function nearestWithin(rows: SnapshotRow[], targetMs: number, toleranceMs: number): SnapshotRow | null {
   let best: SnapshotRow | null = null;
   let bestDist = Infinity;
   for (const r of rows) {
@@ -65,7 +92,9 @@ function nearest(rows: SnapshotRow[], targetMs: number): SnapshotRow | null {
       best = r;
     }
   }
-  return best;
+  // No snapshot close enough to the requested age: report no delta rather than
+  // labelling a much shorter interval as a 7- or 30-day movement.
+  return bestDist <= toleranceMs ? best : null;
 }
 
 // Compute a trend from stored snapshots. Returns 'unknown' direction when
@@ -97,8 +126,8 @@ export async function computeTrend(
     if (rows.length === 0) return empty;
 
     const now = Date.now();
-    const ref7 = nearest(rows, now - 7 * 24 * 60 * 60 * 1000);
-    const ref30 = nearest(rows, now - 30 * 24 * 60 * 60 * 1000);
+    const ref7 = nearestWithin(rows, now - 7 * DAY_MS, TOLERANCE_MS['7d']);
+    const ref30 = nearestWithin(rows, now - 30 * DAY_MS, TOLERANCE_MS['30d']);
 
     const d7 = ref7 ? Math.round((currentComposite - ref7.composite_score) * 10) / 10 : null;
     const d30 = ref30 ? Math.round((currentComposite - ref30.composite_score) * 10) / 10 : null;
