@@ -1,18 +1,36 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { NavIcon } from './NavIcons';
 import { NAV_ITEMS, isActivePath } from './nav-items';
 
 export const Sidebar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
+  const handlePrefetch = (href: string) => {
+    try {
+      router.prefetch(href);
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleClick = (href: string) => {
+    setPendingHref(href);
+  };
 
   return (
     <aside className="hidden lg:flex w-64 bg-[#0a0e17]/80 border-r border-[var(--color-border)] flex-col justify-between shrink-0 h-screen sticky top-0">
       <div>
-        <Link href="/" className="h-20 px-6 flex items-center gap-3 border-b border-[var(--color-border)] hover:opacity-90 transition-opacity">
+        <Link href="/" prefetch={true} className="h-20 px-6 flex items-center gap-3 border-b border-[var(--color-border)] hover:opacity-90 transition-opacity">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-400/25 to-blue-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-300 font-black text-xl">
             S
           </div>
@@ -21,12 +39,16 @@ export const Sidebar: React.FC = () => {
 
         <nav className="p-4 space-y-1.5">
           {NAV_ITEMS.map((item) => {
-            const active = isActivePath(pathname, item.href);
+            const active = pendingHref ? pendingHref === item.href : isActivePath(pathname, item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-4 py-3 rounded-2xl text-[15px] font-semibold transition-all flex items-center gap-3.5 w-full ${
+                prefetch={true}
+                onMouseEnter={() => handlePrefetch(item.href)}
+                onPointerDown={() => handlePrefetch(item.href)}
+                onClick={() => handleClick(item.href)}
+                className={`px-4 py-3 rounded-2xl text-[15px] font-semibold transition-all flex items-center gap-3.5 w-full cursor-pointer select-none active:scale-[0.98] ${
                   active
                     ? 'bg-cyan-500/15 text-cyan-200 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.3)]'
                     : 'text-slate-300 hover:text-slate-50 hover:bg-white/[0.04]'

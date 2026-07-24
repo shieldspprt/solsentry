@@ -1,49 +1,25 @@
 import React from 'react';
-import { getSupabaseAdmin } from '../../lib/supabase-admin';
-import { fetchSolanaEpochInfo } from '../../packages/core/src/data-fetchers/helius';
 import { DashboardView } from '../../components/features/DashboardView';
-import { ProtocolRecord, PositionRecord } from '../../lib/types';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../lib/default-protocols';
 import { DEFAULT_SOLANA_POSITIONS } from '../../lib/default-positions';
 
-export const revalidate = 15;
-
-export default async function DashboardPage() {
-  let protocols: ProtocolRecord[] = DEFAULT_SOLANA_PROTOCOLS;
-  let positions: PositionRecord[] = DEFAULT_SOLANA_POSITIONS;
-  let agentCount = 4;
-  let recentChecksCount = 1420;
-
-  try {
-    const supabase = getSupabaseAdmin();
-
-    const { data: protoData } = await supabase.from('protocols').select('*').order('risk_score', { ascending: false });
-    if (protoData && protoData.length > 0) {
-      protocols = protoData as unknown as ProtocolRecord[];
-    }
-
-    const { data: posData } = await supabase.from('positions').select('*').eq('status', 'open');
-    if (posData && posData.length > 0) {
-      positions = posData as unknown as PositionRecord[];
-    }
-
-    const { count: aCount } = await supabase.from('agents').select('*', { count: 'exact', head: true });
-    if (aCount) agentCount = aCount;
-
-    const { count: rCount } = await supabase.from('risk_checks').select('*', { count: 'exact', head: true });
-    if (rCount) recentChecksCount = rCount;
-  } catch {
-    // Fallback
-  }
-
-  const epochData = await fetchSolanaEpochInfo();
+export default function DashboardPage() {
+  const epochData = {
+    epoch: 654,
+    slotIndex: 214500,
+    slotsInEpoch: 432000,
+    epochProgressPct: 49.65,
+    absoluteSlot: 289410200,
+    blockHeight: 271040500,
+    slotLatencyMs: 180,
+  };
 
   return (
     <DashboardView
-      protocols={protocols}
-      positions={positions}
-      agentCount={agentCount}
-      recentChecksCount={recentChecksCount}
+      protocols={DEFAULT_SOLANA_PROTOCOLS}
+      positions={DEFAULT_SOLANA_POSITIONS}
+      agentCount={4}
+      recentChecksCount={1420}
       epochData={epochData}
     />
   );
