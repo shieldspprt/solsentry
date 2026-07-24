@@ -11,6 +11,23 @@ export const TOOL_PREFIX = 'solsentry_';
 
 export const TOOL_DEFINITIONS = [
   {
+    name: 'solsentry_simulate_transaction',
+    description:
+      'CALL THIS BEFORE SIGNING ANY SOLANA TRANSACTION. Executes the transaction against a mainnet RPC without broadcasting it, then reports exactly which tokens leave the wallet and which arrive, the compute units consumed, and whether the instruction sequence matches a known wallet-drainer pattern (Approve or SetAuthority followed by Transfer/CloseAccount, or a >90% balance sweep). A transaction that looks routine can still be a drainer; this is the only tool here that inspects the actual bytes you are about to sign. If drainerScan.isDrainerPattern is true, DO NOT SIGN. Read-only, no key material required, nothing is broadcast. Example: {"transaction": "<base58_tx_string>"}.',
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transaction: { type: 'string', description: 'Serialized Solana transaction payload, base58 or base64' },
+        encoding: { type: 'string', enum: ['base58', 'base64'] },
+      },
+      required: ['transaction'],
+    },
+  },
+  {
     name: 'solsentry_check_protocol_risk',
     description:
       'Evaluates composite quantitative safety scores, provenance bands, and top risk drivers for Solana protocols. Read-only. Cost: 1 Helius RPC call + 1 Pyth fetch + 2 DeFiLlama fetches per un-cached request (~150ms). Cached for 5 minutes. Example: {"protocolSlug": "jupiter"}.',
@@ -188,23 +205,6 @@ export const TOOL_DEFINITIONS = [
         },
       },
       required: ['protocolSlug'],
-    },
-  },
-  {
-    name: 'solsentry_simulate_transaction',
-    description:
-      'Simulates a raw serialized Solana transaction, extracting pre vs post token balance deltas, Compute Units consumed, and scanning for drainer instruction patterns. Example: {"transaction": "<base58_tx_string>"}.',
-    readOnlyHint: true,
-    destructiveHint: false,
-    idempotentHint: true,
-    openWorldHint: false,
-    inputSchema: {
-      type: 'object',
-      properties: {
-        transaction: { type: 'string', description: 'Serialized Solana transaction payload' },
-        encoding: { type: 'string', enum: ['base58', 'base64'] },
-      },
-      required: ['transaction'],
     },
   },
 ];

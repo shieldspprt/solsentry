@@ -69,7 +69,7 @@ export async function handleEvaluatePolicy(args: unknown, ctx?: { userId?: strin
   if (targetProtocol) {
     try {
       const grounded = await buildGroundedMetrics(targetProtocol);
-      riskBreakdown = computeProtocolRisk({ ...targetProtocol, institutional_metrics: grounded.metrics }, { provenance: grounded.provenance });
+      riskBreakdown = computeProtocolRisk({ ...targetProtocol, institutional_metrics: grounded.metrics }, { provenance: grounded.provenance, incidents: grounded.incidents });
     } catch {
       riskBreakdown = computeProtocolRisk(targetProtocol);
     }

@@ -37,7 +37,7 @@ export async function GET() {
         const merged: ProtocolRecord = { ...protocol, tvl_usd: grounded.tvl_usd ?? protocol.tvl_usd };
         const breakdown = computeProtocolRisk(
           { ...merged, institutional_metrics: grounded.metrics },
-          { provenance: grounded.provenance }
+          { provenance: grounded.provenance, incidents: grounded.incidents }
         );
         return {
           protocol: merged,

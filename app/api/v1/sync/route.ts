@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
         const merged = { ...current, tvl_usd: grounded.tvl_usd ?? current.tvl_usd };
         const breakdown = computeProtocolRisk(
           { ...merged, institutional_metrics: grounded.metrics },
-          { provenance: grounded.provenance }
+          { provenance: grounded.provenance, incidents: grounded.incidents }
         );
 
         await supabase.from('protocols').update({

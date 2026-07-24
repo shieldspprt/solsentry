@@ -49,10 +49,10 @@ describe('Institutional Risk Scorer', () => {
       },
     });
 
-    expect(result.factors!.length).toBe(7);
+    expect(result.factors!.length).toBe(8);
     const measured = result.factors!.filter((f) => f.measured);
     expect(measured.length).toBeGreaterThan(0);
-    expect(measured.length).toBeLessThan(7);
+    expect(measured.length).toBeLessThan(8);
 
     // Effective weights across measured factors must still sum to 1.0.
     const weightSum = measured.reduce((s, f) => s + f.weight, 0);
@@ -120,14 +120,22 @@ describe('Institutional Risk Scorer', () => {
       {
         ...KAMINO,
         institutional_metrics: {
-          bot_density_pct: 20,
+          bot_density_pct: null,
           near_liquidation_ratio_pct: 1.0,
           whale_concentration_pct: 15,
           oracle_slot_lag_ms: 200,
           upgradeability_timelock_hours: 48,
-        },
+          oracle_health: {
+            worst_feed: 'USDC_USD',
+            worst_health_score: 10,
+            worst_confidence_bps: 4,
+            feeds_checked: ['SOL_USD', 'USDC_USD'],
+            max_stablecoin_depeg_bps: 5,
+          },
+        } as any,
       },
       {
+        incidents: { score: 10, gate: null, warnings: [], rationale: 'No exploit on record.' },
         provenance: {
           oracle_depeg: { source: 'pyth', as_of: '2026-01-01T00:00:00Z', confidence: 0.95 },
           whale_concentration: { source: 'helius', as_of: '2026-01-01T00:00:00Z', confidence: 0.9 },
@@ -137,6 +145,114 @@ describe('Institutional Risk Scorer', () => {
 
     expect(result.factor_coverage.weight_covered_pct).toBeGreaterThanOrEqual(50);
     expect(result.agent_decision.action).not.toBe('HOLD');
+  });
+
+  it('scores the oracle on the WEAKEST feed a protocol depends on, not an average', () => {
+    const result = computeProtocolRisk({
+      ...KAMINO,
+      institutional_metrics: {
+        oracle_health: {
+          worst_feed: 'USDT_USD',
+          worst_health_score: 4,
+          worst_confidence_bps: 60,
+          feeds_checked: ['SOL_USD', 'USDC_USD', 'USDT_USD'],
+          max_stablecoin_depeg_bps: 12,
+        },
+      } as any,
+    });
+
+    const oracle = result.factors!.find((f) => f.key === 'oracle_depeg')!;
+    expect(oracle.measured).toBe(true);
+    expect(oracle.score).toBe(4);
+    expect(oracle.rationale).toContain('USDT_USD');
+    expect(result.critical_warnings.some((w) => w.includes('Degraded oracle feed'))).toBe(true);
+  });
+
+  it('penalises a stablecoin drifting off its dollar peg', () => {
+    const healthy = { worst_feed: 'USDC_USD', worst_health_score: 10, worst_confidence_bps: 4, feeds_checked: ['USDC_USD'] };
+    const pegged = computeProtocolRisk({
+      ...KAMINO,
+      institutional_metrics: { oracle_health: { ...healthy, max_stablecoin_depeg_bps: 5 } } as any,
+    });
+    const depegged = computeProtocolRisk({
+      ...KAMINO,
+      institutional_metrics: { oracle_health: { ...healthy, max_stablecoin_depeg_bps: 250 } } as any,
+    });
+
+    const score = (r: typeof pegged) => r.factors!.find((f) => f.key === 'oracle_depeg')!.score!;
+    expect(score(depegged)).toBeLessThan(score(pegged));
+    expect(depegged.critical_warnings.some((w) => w.includes('de-peg'))).toBe(true);
+  });
+
+  it('lets a realized exploit override an otherwise healthy composite', () => {
+    // Drift's real shape: strong on audits, TVL and holders, while having lost
+    // $295M to an admin-key compromise. Averaging must not bury that.
+    const base = {
+      ...KAMINO,
+      institutional_metrics: {
+        whale_concentration_pct: 15,
+        near_liquidation_ratio_pct: 1.0,
+        oracle_health: {
+          worst_feed: 'SOL_USD',
+          worst_health_score: 10,
+          worst_confidence_bps: 4,
+          feeds_checked: ['SOL_USD'],
+          max_stablecoin_depeg_bps: null,
+        },
+      } as any,
+    };
+    const prov = {
+      oracle_depeg: { source: 'pyth' as const, as_of: '2026-01-01T00:00:00Z', confidence: 0.95 },
+      whale_concentration: { source: 'helius' as const, as_of: '2026-01-01T00:00:00Z', confidence: 0.9 },
+    };
+
+    const clean = computeProtocolRisk(base, {
+      provenance: prov,
+      incidents: { score: 10, gate: null, warnings: [], rationale: 'No exploit on record.' },
+    });
+    const exploited = computeProtocolRisk(base, {
+      provenance: prov,
+      incidents: {
+        score: 0,
+        gate: 'block',
+        warnings: ['Lost $295.0M to "Compromised Admin" 114 days ago'],
+        rationale: '1 recorded exploit, $295.0M lost.',
+      },
+    });
+
+    expect(clean.action_recommendation).not.toBe('block');
+    expect(exploited.action_recommendation).toBe('block');
+    expect(exploited.risk_tier).toBe('critical');
+    expect(exploited.agent_decision.action).toBe('SELL_POSITION');
+    expect(exploited.critical_warnings.some((w) => w.includes('295'))).toBe(true);
+  });
+
+  it('caps at avoid for a material — not severe — recent exploit', () => {
+    const result = computeProtocolRisk(KAMINO, {
+      incidents: {
+        score: 3,
+        gate: 'avoid',
+        warnings: ['Lost $1.3M 44 days ago'],
+        rationale: '1 recorded exploit.',
+      },
+    });
+    expect(result.action_recommendation).toBe('avoid');
+    expect(result.agent_decision.action).toBe('CHANGE_POSITION');
+  });
+
+  it('scores developer activity for abandonment, not commit volume', () => {
+    const mk = (commits: number, devs: number) =>
+      computeProtocolRisk({
+        ...KAMINO,
+        institutional_metrics: {
+          web_community: { developer_commits_30d: commits, active_devs_count: devs, github_org: 'x', repos_sampled: 3, as_of: null },
+        } as any,
+      }).factors!.find((f) => f.key === 'web_community')!.score!;
+
+    // A maintenance-mode protocol shipping 4 commits must not be ranked with a
+    // dead one; and 200 commits is not twice as safe as 20.
+    expect(mk(0, 0)).toBeLessThan(mk(4, 3));
+    expect(mk(20, 5)).toBe(mk(200, 30));
   });
 
   it('refuses to recommend anything when nothing can be grounded', () => {

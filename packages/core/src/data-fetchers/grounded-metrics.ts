@@ -1,6 +1,8 @@
 import { InstitutionalRiskMetrics, ProtocolRecord, FactorKey, FactorProvenance } from '../../../../lib/types';
 import { getBaselineMetricsForProtocol } from '../risk-scorer';
-import { fetchOracleHealth } from './pyth';
+import { fetchProtocolOracleHealth } from './pyth';
+import { fetchProtocolIncidents, assessIncidents, IncidentAssessment } from './incidents';
+import { PROTOCOL_ORACLE_FEEDS, STABLECOIN_FEEDS } from '../constants';
 import { fetchTokenHolderConcentration } from './helius';
 import { fetchProtocolFees, fetchProtocolTvl } from './defillama';
 import { fetchDeveloperActivity } from './github';
@@ -13,6 +15,8 @@ export interface GroundedMetricsResult {
   tvl_usd: number | null;
   sources_live: string[];
   sources_unavailable: string[];
+  /** Exploit assessment, including any hard verdict gate it imposes. */
+  incidents: IncidentAssessment | null;
 }
 
 // Assemble a protocol's institutional metrics from live sources. Anything a
@@ -28,23 +32,52 @@ export async function buildGroundedMetrics(
   const sourcesLive: string[] = [];
   const sourcesUnavailable: string[] = [];
 
-  const [oracle, holders, fees, tvl, devActivity, categoryTvl, integrity] = await Promise.all([
-    fetchOracleHealth('SOL_USD'),
+  // Each protocol scores against the feeds its own solvency depends on.
+  const feeds = PROTOCOL_ORACLE_FEEDS[slug] || ['SOL_USD'];
+
+  const [oracle, holders, fees, tvl, devActivity, categoryTvl, integrity, incidentHistory] = await Promise.all([
+    fetchProtocolOracleHealth(feeds, STABLECOIN_FEEDS),
     fetchTokenHolderConcentration(slug),
     fetchProtocolFees(slug),
     fetchProtocolTvl(slug),
     fetchDeveloperActivity(slug),
     protocol.category ? fetchCategoryTvl(protocol.category) : Promise.resolve(null),
     fetchTokenMarketIntegrity(slug),
+    fetchProtocolIncidents(slug),
   ]);
 
-  // --- Oracle health (Pyth) ---
+  // --- Oracle health (Pyth, worst feed the protocol depends on) ---
   if (oracle) {
-    base.oracle_slot_lag_ms = oracle.slot_lag_ms;
+    base.oracle_slot_lag_ms = oracle.worst.slot_lag_ms;
+    base.oracle_health = {
+      worst_feed: oracle.worst.symbol,
+      worst_health_score: oracle.worst.health_score,
+      worst_confidence_bps: oracle.worst.confidence_bps,
+      feeds_checked: oracle.feeds.map((f) => f.symbol),
+      max_stablecoin_depeg_bps: oracle.max_stablecoin_depeg_bps,
+    };
     provenance.oracle_depeg = { source: 'pyth', as_of: oracle.as_of, confidence: 0.95 };
-    sourcesLive.push('pyth:oracle');
+    sourcesLive.push(`pyth:${oracle.feeds.length}feeds`);
   } else {
     sourcesUnavailable.push('pyth:oracle');
+  }
+
+  // --- Realized exploit history (DeFiLlama hacks) ---
+  let incidentAssessment: IncidentAssessment | null = null;
+  if (incidentHistory) {
+    incidentAssessment = assessIncidents(incidentHistory);
+    base.incident_history = {
+      incident_count: incidentHistory.incidents.length,
+      total_lost_usd: incidentHistory.total_lost_usd,
+      most_recent_name: incidentHistory.most_recent?.name ?? null,
+      most_recent_age_days: incidentHistory.most_recent?.age_days ?? null,
+      most_recent_amount_usd: incidentHistory.most_recent?.amount_usd ?? null,
+      most_recent_technique: incidentHistory.most_recent?.technique ?? null,
+    };
+    provenance.exploit_incidents = { source: 'defillama', as_of: incidentHistory.as_of, confidence: 0.9 };
+    sourcesLive.push('defillama:hacks');
+  } else {
+    sourcesUnavailable.push('defillama:hacks');
   }
 
   // --- Whale concentration ---
@@ -142,5 +175,6 @@ export async function buildGroundedMetrics(
     tvl_usd: liveTvl,
     sources_live: sourcesLive,
     sources_unavailable: sourcesUnavailable,
+    incidents: incidentAssessment,
   };
 }

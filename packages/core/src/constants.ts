@@ -30,14 +30,23 @@ export const RISK_MODEL_VERSION = VERSION_FROM_LIB;
 
 // Composite weights per factor (sum = 1.0). Single source of truth used by
 // both the scorer and the documentation/UI so weights never drift apart.
+// Weights reflect how much each factor has to say about losing money.
+//
+// exploit_incidents leads because it is the only factor describing what has
+// actually happened to a protocol rather than how it looks. oracle_depeg rose
+// once it became per-protocol (it was previously the same SOL/USD reading for
+// every protocol, contributing nothing). web_community and business_efficiency
+// fell to 5%: commit counts and fee/TVL are weak, noisy proxies for solvency
+// and were carrying more weight than their signal justifies.
 export const FACTOR_WEIGHTS = {
-  audit_governance: 0.2,
-  liquidation_rekt: 0.2,
-  mev_bot_density: 0.15,
-  whale_concentration: 0.15,
-  oracle_depeg: 0.1,
-  web_community: 0.1,
-  business_efficiency: 0.1,
+  exploit_incidents: 0.25,
+  audit_governance: 0.15,
+  liquidation_rekt: 0.15,
+  oracle_depeg: 0.15,
+  whale_concentration: 0.1,
+  mev_bot_density: 0.1,
+  web_community: 0.05,
+  business_efficiency: 0.05,
 } as const;
 
 // Confidence assigned to a factor by the provenance of its driving metric.
@@ -57,6 +66,28 @@ export const SOURCE_CONFIDENCE: Record<string, number> = {
   derived: 0.6,
   unmeasured: 0,
 };
+
+// The price feeds a protocol's solvency actually depends on.
+//
+// Every protocol previously scored against a single hardcoded SOL/USD reading,
+// so the oracle factor returned an identical value across the whole index and
+// could not differentiate anything despite carrying real weight. A lending
+// market's risk lies in its collateral AND its stablecoin quote assets; a
+// liquid-staking protocol's lies in its LST tracking SOL.
+export const PROTOCOL_ORACLE_FEEDS: Record<string, Array<keyof typeof PYTH_FEED_IDS>> = {
+  kamino: ['SOL_USD', 'USDC_USD', 'USDT_USD', 'JITOSOL_USD', 'MSOL_USD'],
+  drift: ['SOL_USD', 'USDC_USD', 'BTC_USD', 'ETH_USD'],
+  jupiter: ['SOL_USD', 'USDC_USD', 'USDT_USD'],
+  raydium: ['SOL_USD', 'USDC_USD'],
+  orca: ['SOL_USD', 'USDC_USD'],
+  meteora: ['SOL_USD', 'USDC_USD'],
+  marinade: ['SOL_USD', 'MSOL_USD'],
+  jito: ['SOL_USD', 'JITOSOL_USD'],
+  pumpfun: ['SOL_USD'],
+};
+
+/** Feeds that are supposed to hold a dollar peg, so deviation is meaningful. */
+export const STABLECOIN_FEEDS: Array<keyof typeof PYTH_FEED_IDS> = ['USDC_USD', 'USDT_USD'];
 
 // Governance parameters taken from each protocol's published documentation.
 // These are citations, not measurements — they are tagged `protocol_docs` so a

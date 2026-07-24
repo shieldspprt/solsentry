@@ -52,24 +52,27 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-tight">
-          Every AI agent can trade. <br />
+          Never sign a drainer. <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400">
-            SolSentry makes sure they don't get rekt.
+            One call, before your agent signs.
           </span>
         </h1>
 
         <p className="text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
-          A provenance-tagged risk engine, real-time transaction simulator, developer CLI, x402 pay-as-you-go micropayments, and
-          multi-framework AI agent plugins for Solana. Every factor names its source — and anything we cannot measure is reported
-          as unmeasured, never filled in.
+          SolSentry runs your agent's transaction against mainnet without broadcasting it, and tells you exactly which tokens
+          leave the wallet — and whether the instruction sequence matches a known wallet-drainer pattern. Plus a
+          provenance-tagged protocol risk engine where every factor names its source, and anything we cannot measure is reported
+          as unmeasured rather than filled in.
         </p>
 
-        {/* CLI Command Box */}
-        <div className="max-w-xl mx-auto p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left font-mono text-xs text-cyan-300 shadow-xl">
-          <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider mb-1">Developer CLI Quickstart:</span>
-          <div>$ npm install -g @solsentry/cli</div>
-          <div className="text-slate-400">$ solsentry check kamino --details</div>
-          <div className="text-slate-400">$ solsentry simulate tx_base58_string</div>
+        {/* The one call that matters, shown first */}
+        <div className="max-w-2xl mx-auto p-4 rounded-2xl bg-slate-950 border border-slate-800 text-left font-mono text-xs shadow-xl">
+          <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider mb-2">
+            Before your agent signs:
+          </span>
+          <div className="text-cyan-300">const check = await sentry.simulate(serializedTx);</div>
+          <div className="text-rose-300">{'if (check.drainerScan.isDrainerPattern) return;  // do not sign'}</div>
+          <div className="text-slate-500 mt-2">$ solsentry simulate &lt;tx&gt;    # or from the CLI</div>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">

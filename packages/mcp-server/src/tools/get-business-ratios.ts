@@ -46,7 +46,7 @@ export async function handleGetBusinessRatios(args: unknown) {
   const grounded = await buildGroundedMetrics(protocolRecord);
   const breakdown = computeProtocolRisk(
     { ...protocolRecord, tvl_usd: grounded.tvl_usd ?? protocolRecord.tvl_usd, institutional_metrics: grounded.metrics },
-    { provenance: grounded.provenance }
+    { provenance: grounded.provenance, incidents: grounded.incidents }
   );
   const biz = breakdown.quant_metrics.business_ratios;
   const web = breakdown.quant_metrics.web_community;

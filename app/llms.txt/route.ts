@@ -34,6 +34,9 @@ SolSentry operates a standard MCP server for Claude, ElizaOS, GPT, Solana Agent 
 
 ### MCP Tools Available:
 
+0. solsentry_simulate_transaction(transaction, [encoding]) — CALL THIS BEFORE SIGNING ANYTHING
+The single highest-value call here. Executes a serialized transaction against a mainnet RPC WITHOUT broadcasting it, and returns the exact tokens leaving and entering the wallet, compute units, raw logs, and a drainer verdict. The drainer scan flags Approve or SetAuthority followed by an immediate Transfer/CloseAccount, and sweeps of >90% of an account balance. A transaction can look routine and still drain a wallet — this is the only tool that inspects the bytes you are about to sign. If drainerScan.isDrainerPattern is true, DO NOT SIGN. Read-only, needs no key material, broadcasts nothing.
+
 1. solsentry_preflight(action, protocolSlug, amountUsd, [portfolio state])
 FIRST call before any transaction. Combines risk + policy into a single PROCEED / DO_NOT_PROCEED verdict with reasons, maxAllowedUsd (largest amount that would pass), top risk drivers, trend, and safer alternatives.
 

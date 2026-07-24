@@ -9,8 +9,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { StatTile } from '../ui/StatTile';
 import { ProtocolRecord } from '../../lib/types';
-import { SolanaEpochData } from '../../packages/core/src/data-fetchers/helius';
-import { SolanaEpochProgressCard } from './SolanaEpochProgressCard';
+import { ProtocolAlertBoard } from './ProtocolAlertBoard';
 import { ImminentRektRadarCard } from './ImminentRektRadarCard';
 import { formatCompactCurrency } from '../../lib/formatters';
 import { usePositions, useScoredProtocols } from '../../hooks/use-sentry-swr';
@@ -19,7 +18,6 @@ export interface DashboardViewProps {
   protocols: ProtocolRecord[];
   agentCount: number | null;
   recentChecksCount: number | null;
-  epochData: SolanaEpochData | null;
 }
 
 function decisionVariant(action: string): 'low' | 'medium' | 'critical' {
@@ -34,7 +32,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   protocols: initialProtocols,
   agentCount,
   recentChecksCount,
-  epochData,
 }) => {
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
@@ -135,7 +132,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Priority cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <SolanaEpochProgressCard epochData={epochData} />
+        <ProtocolAlertBoard scored={scored} isLoading={isLoading} />
         <ImminentRektRadarCard positions={positions} hasWallet={hasWallet} />
       </div>
 

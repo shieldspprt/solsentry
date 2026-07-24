@@ -45,6 +45,15 @@ export interface RiskScoreOptions {
   provenance?: Partial<Record<FactorKey, FactorProvenance>>;
   trend?: MetricTrend | null;
   now?: string; // deterministic timestamp injection for tests
+  // Exploit assessment from the incident fetcher. Its `gate` can override the
+  // verdict: a realized nine-figure loss should not be averaged away by six
+  // healthy-looking co-factors.
+  incidents?: {
+    score: number;
+    gate: 'block' | 'avoid' | null;
+    warnings: string[];
+    rationale: string;
+  } | null;
 }
 
 // Baseline metrics carry no invented telemetry. Governance facts (timelock
@@ -152,6 +161,29 @@ export function computeProtocolRisk(
       rationale,
     });
   };
+
+  // --- Realized exploit history ---
+  // The only factor describing what has actually happened to the protocol
+  // rather than how it looks on paper.
+  if (opts.incidents) {
+    warnings.push(...opts.incidents.warnings);
+    addMeasured(
+      'exploit_incidents',
+      'Exploit History',
+      opts.incidents.score,
+      metrics.incident_history?.incident_count ?? 0,
+      'incidents',
+      opts.incidents.rationale,
+      'defillama'
+    );
+  } else {
+    addUnmeasured(
+      'exploit_incidents',
+      'Exploit History',
+      'incidents',
+      'The DeFiLlama hacks dataset was unreachable — exploit history could not be checked.'
+    );
+  }
 
   // --- Audit & Governance ---
   // Audit status and auditor list are registry facts. The timelock modifier only
@@ -265,26 +297,50 @@ export function computeProtocolRisk(
     addUnmeasured('whale_concentration', 'Whale Concentration', '%', 'No governance token mint mapped, or holder data unavailable.');
   }
 
-  // --- Oracle latency & depeg (Pyth publish staleness + confidence width) ---
-  const lag = metrics.oracle_slot_lag_ms;
-  if (lag != null) {
-    let oracleDepegScore = 10.0;
-    if (lag > 30000) {
-      oracleDepegScore -= 4.0;
-      warnings.push(`Oracle publish stale by ${Math.round(lag / 1000)}s`);
-    } else if (lag > 10000) oracleDepegScore -= 2.0;
-    else if (lag > 4000) oracleDepegScore -= 0.8;
+  // --- Oracle health & stablecoin depeg ---
+  // Scored on the WEAKEST feed the protocol depends on, not an average: a
+  // lending market is only as safe as its shakiest collateral or quote feed, so
+  // averaging would hide precisely the case that matters. Previously this read
+  // a single hardcoded SOL/USD feed for every protocol and so was identical
+  // across the whole index.
+  const oracleSummary = metrics.oracle_health;
+  if (oracleSummary) {
+    let oracleScore = oracleSummary.worst_health_score;
+
+    const depegBps = oracleSummary.max_stablecoin_depeg_bps;
+    if (depegBps != null) {
+      // A stablecoin off its peg is a direct solvency signal for any market
+      // that quotes or collateralises in it. 100bps = 1 cent off the dollar.
+      if (depegBps > 200) {
+        oracleScore -= 5;
+        warnings.push(`Stablecoin de-peg: ${depegBps}bps from $1.00 on a feed this protocol depends on`);
+      } else if (depegBps > 100) {
+        oracleScore -= 3;
+        warnings.push(`Stablecoin drift: ${depegBps}bps from $1.00`);
+      } else if (depegBps > 50) {
+        oracleScore -= 1;
+      }
+    }
+
+    if (oracleSummary.worst_health_score < 6) {
+      warnings.push(
+        `Degraded oracle feed ${oracleSummary.worst_feed} (health ${oracleSummary.worst_health_score}/10, confidence ${oracleSummary.worst_confidence_bps}bps)`
+      );
+    }
+
     addMeasured(
       'oracle_depeg',
-      'Oracle Latency & Depeg',
-      oracleDepegScore,
-      lag,
-      'ms',
-      `Pyth publish staleness ${lag}ms.`,
+      'Oracle Health & Depeg',
+      oracleScore,
+      oracleSummary.worst_health_score,
+      'score/10',
+      `Weakest of ${oracleSummary.feeds_checked.length} feed(s) this protocol depends on: ${oracleSummary.worst_feed} at ${oracleSummary.worst_health_score}/10 (confidence ${oracleSummary.worst_confidence_bps}bps)` +
+        (depegBps != null ? `; max stablecoin deviation ${depegBps}bps from $1.00` : '') +
+        `. Checked: ${oracleSummary.feeds_checked.join(', ')}.`,
       'pyth'
     );
   } else {
-    addUnmeasured('oracle_depeg', 'Oracle Latency & Depeg', 'ms', 'Pyth Hermes did not return a price update.');
+    addUnmeasured('oracle_depeg', 'Oracle Health & Depeg', 'score/10', 'Pyth Hermes did not return price updates for this protocol’s feeds.');
   }
 
   // --- Developer activity (GitHub) ---
@@ -292,20 +348,29 @@ export function computeProtocolRisk(
   const commits = web?.developer_commits_30d ?? null;
   const devs = web?.active_devs_count ?? null;
   if (commits != null && devs != null) {
-    // An actively maintained protocol shows sustained commit flow across a
-    // meaningful contributor set. Both saturate — more commits past the cap is
-    // not more safety.
-    const commitComp = Math.min(commits / 60, 1) * 6.0; // 0..6
-    const devComp = Math.min(devs / 8, 1) * 4.0; // 0..4
-    const devScore = clampScore(commitComp + devComp);
-    if (commits === 0) warnings.push('No public commits in the last 30 days');
+    // Detects ABANDONMENT, not productivity. The previous curve scaled linearly
+    // to 60 commits, so Kamino — a $1B-TVL protocol in maintenance mode — scored
+    // 1.9/10 for shipping 4 commits, ranking it alongside a dead project. Commit
+    // volume does not linearly track safety; a mature protocol commits less.
+    // What actually matters is whether anyone is still there at all.
+    let devScore: number;
+    if (commits === 0 && devs === 0) {
+      devScore = 1;
+      warnings.push('No public commits in the last 30 days — protocol may be unmaintained');
+    } else if (commits < 3 || devs < 2) {
+      devScore = 5; // a flicker of activity, but thin
+    } else if (commits < 10) {
+      devScore = 7.5;
+    } else {
+      devScore = 10; // clearly actively maintained; more is not safer
+    }
     addMeasured(
       'web_community',
       'Developer Activity',
       devScore,
       commits,
       'commits/30d',
-      `${commits} commits by ${devs} contributor(s) across ${web?.repos_sampled ?? 0} repo(s) in github.com/${web?.github_org}.`,
+      `${commits} commits by ${devs} contributor(s) across ${web?.repos_sampled ?? 0} repo(s) in github.com/${web?.github_org}. Scored for maintenance signal, not commit volume.`,
       'github'
     );
   } else {
@@ -380,8 +445,22 @@ export function computeProtocolRisk(
   const hasEnoughCoverage = coverage.weight_covered_pct >= MIN_COVERAGE_FOR_RECOMMENDATION_PCT;
   const scored = recommendationForScore(compositeScore);
   // Too little evidence to take a side: report the score, withhold the verdict.
-  const risk_tier: RiskLevel = hasEnoughCoverage ? scored.tier : 'high';
-  const action_recommendation: RecommendationType = hasEnoughCoverage ? scored.rec : 'proceed_with_caution';
+  let risk_tier: RiskLevel = hasEnoughCoverage ? scored.tier : 'high';
+  let action_recommendation: RecommendationType = hasEnoughCoverage ? scored.rec : 'proceed_with_caution';
+
+  // A realized exploit overrides the composite. Six healthy-looking co-factors
+  // should not average a recent nine-figure loss down to a fraction of a point:
+  // Drift scores well on audits, TVL and holders while having lost $295M to an
+  // admin-key compromise. The gate is the reason this engine can say "block" at
+  // all — before it existed, no protocol ever received one.
+  const incidentGate = opts.incidents?.gate ?? null;
+  if (incidentGate === 'block') {
+    risk_tier = 'critical';
+    action_recommendation = 'block';
+  } else if (incidentGate === 'avoid' && action_recommendation !== 'block') {
+    risk_tier = risk_tier === 'low' || risk_tier === 'medium' ? 'high' : risk_tier;
+    action_recommendation = 'avoid';
+  }
 
   // --- Top drivers: distance from the neutral 7.0 baseline, weighted ---
   const top_drivers: ScoreDriver[] = measured
@@ -462,6 +541,20 @@ export function computeProtocolRisk(
       primary_reason: 'No factor could be grounded in live data — SolSentry has no basis for a recommendation on this protocol.',
       suggested_strategy: 'hold',
     };
+  } else if (incidentGate === 'block') {
+    agent_decision = {
+      action: 'SELL_POSITION',
+      confidence_score: derivedConfidence,
+      primary_reason: `Blocked on realized exploit history, not on the composite (${compositeScore}/10). ${opts.incidents?.rationale || ''} Exit or stay out until the protocol has a clean record over the review window.`,
+      suggested_strategy: 'exit_protocol',
+    };
+  } else if (incidentGate === 'avoid') {
+    agent_decision = {
+      action: 'CHANGE_POSITION',
+      confidence_score: derivedConfidence,
+      primary_reason: `Composite ${compositeScore}/10, but a material exploit inside the review window caps this at avoid. ${opts.incidents?.rationale || ''} Reduce exposure.`,
+      suggested_strategy: 'deleverage',
+    };
   } else if (!hasEnoughCoverage) {
     // A high score built on one or two factors is not a safety signal.
     agent_decision = {
@@ -508,6 +601,7 @@ export function computeProtocolRisk(
   const byKey = (k: FactorKey) => factors.find((f) => f.key === k)?.score ?? null;
 
   return {
+    exploit_incidents_score: byKey('exploit_incidents'),
     audit_governance_score: byKey('audit_governance'),
     liquidation_rekt_score: byKey('liquidation_rekt'),
     mev_bot_density_score: byKey('mev_bot_density'),

@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS protocol_metric_snapshots (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   protocol_slug TEXT NOT NULL,
   composite_score NUMERIC NOT NULL,
+  exploit_incidents_score NUMERIC,
   audit_governance_score NUMERIC,
   liquidation_rekt_score NUMERIC,
   mev_bot_density_score NUMERIC,
@@ -42,6 +43,8 @@ ALTER TABLE protocol_metric_snapshots
   ADD COLUMN IF NOT EXISTS captured_hour TIMESTAMPTZ;
 ALTER TABLE protocol_metric_snapshots
   ADD COLUMN IF NOT EXISTS weight_covered_pct NUMERIC;
+ALTER TABLE protocol_metric_snapshots
+  ADD COLUMN IF NOT EXISTS exploit_incidents_score NUMERIC;
 UPDATE protocol_metric_snapshots
   SET captured_hour = date_trunc('hour', captured_at)
   WHERE captured_hour IS NULL;

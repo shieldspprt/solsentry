@@ -1,7 +1,6 @@
 import React from 'react';
 import { DashboardView } from '../../components/features/DashboardView';
 import { DEFAULT_SOLANA_PROTOCOLS } from '../../lib/default-protocols';
-import { fetchSolanaEpochInfo } from '../../packages/core/src/data-fetchers/helius';
 import { getSupabaseAdmin } from '../../lib/supabase-admin';
 import { ProtocolRecord } from '../../lib/types';
 
@@ -32,14 +31,11 @@ export default async function DashboardPage() {
     // Counts stay null; the registry falls back to the bundled protocol list.
   }
 
-  const epochData = await fetchSolanaEpochInfo();
-
   return (
     <DashboardView
       protocols={protocols}
       agentCount={agentCount}
       recentChecksCount={recentChecksCount}
-      epochData={epochData}
     />
   );
 }

@@ -24,6 +24,7 @@ export async function recordSnapshot(
       {
         protocol_slug: slug,
         composite_score: breakdown.composite_risk_score,
+        exploit_incidents_score: breakdown.exploit_incidents_score,
         audit_governance_score: breakdown.audit_governance_score,
         liquidation_rekt_score: breakdown.liquidation_rekt_score,
         mev_bot_density_score: breakdown.mev_bot_density_score,
@@ -51,6 +52,7 @@ export async function recordSnapshot(
 
 interface SnapshotRow {
   composite_score: number;
+  exploit_incidents_score: number | null;
   audit_governance_score: number | null;
   liquidation_rekt_score: number | null;
   mev_bot_density_score: number | null;
@@ -62,6 +64,7 @@ interface SnapshotRow {
 }
 
 const FACTOR_COLUMNS: Record<FactorKey, keyof SnapshotRow> = {
+  exploit_incidents: 'exploit_incidents_score',
   audit_governance: 'audit_governance_score',
   liquidation_rekt: 'liquidation_rekt_score',
   mev_bot_density: 'mev_bot_density_score',

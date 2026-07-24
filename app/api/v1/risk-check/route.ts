@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     try {
       const grounded = await buildGroundedMetrics(protocol);
       tvlUsd = grounded.tvl_usd ?? protocol.tvl_usd;
-      breakdown = computeProtocolRisk({ ...protocol, institutional_metrics: grounded.metrics }, { provenance: grounded.provenance });
+      breakdown = computeProtocolRisk({ ...protocol, institutional_metrics: grounded.metrics }, { provenance: grounded.provenance, incidents: grounded.incidents });
     } catch (err: any) {
       logger.warn('grounded_metrics_fetch_failed', { slug: protocolSlug, error: err.message });
       breakdown = computeProtocolRisk(protocol);

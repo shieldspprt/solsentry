@@ -107,10 +107,32 @@ export interface TokenMarketIntegrity {
   as_of: string | null;
 }
 
+// Worst-case oracle health across the feeds a protocol's solvency depends on.
+export interface ProtocolOracleSummary {
+  worst_feed: string;
+  worst_health_score: number;
+  worst_confidence_bps: number;
+  feeds_checked: string[];
+  /** Largest deviation from $1.00 across the protocol's stablecoin feeds, bps. */
+  max_stablecoin_depeg_bps: number | null;
+}
+
+// Realized exploit history — what has actually happened to the protocol.
+export interface IncidentHistorySummary {
+  incident_count: number;
+  total_lost_usd: number;
+  most_recent_name: string | null;
+  most_recent_age_days: number | null;
+  most_recent_amount_usd: number | null;
+  most_recent_technique: string | null;
+}
+
 export interface InstitutionalRiskMetrics {
   /** Deprecated: never had a source. Superseded by token_market_integrity. */
   bot_density_pct: number | null;
   token_market_integrity?: TokenMarketIntegrity;
+  oracle_health?: ProtocolOracleSummary;
+  incident_history?: IncidentHistorySummary;
   /** % of open value near its liquidation threshold. No public source yet. */
   near_liquidation_ratio_pct: number | null;
   /** Top-10 holder share of token supply (Helius). */
@@ -164,6 +186,7 @@ export type DataSource =
   | 'unmeasured';
 
 export type FactorKey =
+  | 'exploit_incidents'
   | 'audit_governance'
   | 'liquidation_rekt'
   | 'mev_bot_density'
@@ -250,6 +273,7 @@ export interface DataQualityIndicator {
 }
 
 export interface InstitutionalFactorsBreakdown {
+  exploit_incidents_score: number | null;
   audit_governance_score: number | null;
   liquidation_rekt_score: number | null;
   mev_bot_density_score: number | null;

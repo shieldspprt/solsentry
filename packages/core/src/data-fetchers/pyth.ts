@@ -63,6 +63,47 @@ export interface OracleHealthSignal {
   as_of: string;
 }
 
+export interface ProtocolOracleHealth {
+  /** Health of the weakest feed the protocol depends on — risk is worst-case. */
+  worst: OracleHealthSignal;
+  feeds: OracleHealthSignal[];
+  /** Largest deviation from $1.00 across the protocol's stablecoin feeds, in bps. */
+  max_stablecoin_depeg_bps: number | null;
+  as_of: string;
+}
+
+// Oracle health across every feed a protocol's solvency depends on, scored on
+// the weakest link. A lending market is only as safe as its shakiest collateral
+// or quote feed, so averaging would hide exactly the case that matters.
+export async function fetchProtocolOracleHealth(
+  symbols: Array<keyof typeof PYTH_FEED_IDS>,
+  stablecoins: Array<keyof typeof PYTH_FEED_IDS> = []
+): Promise<ProtocolOracleHealth | null> {
+  if (!symbols.length) return null;
+
+  const results = (await Promise.all(symbols.map((s) => fetchOracleHealth(s)))).filter(
+    (r): r is OracleHealthSignal => r !== null
+  );
+  if (results.length === 0) return null;
+
+  const worst = results.reduce((w, r) => (r.health_score < w.health_score ? r : w), results[0]);
+
+  // A stablecoin drifting off its peg is a direct, readable solvency signal for
+  // any market that quotes or collateralises in it.
+  const stableSet = new Set<string>(stablecoins as string[]);
+  const depegs = results
+    .filter((r) => stableSet.has(r.symbol))
+    .map((r) => Math.abs(r.price - 1) * 10000);
+  const maxDepegBps = depegs.length > 0 ? Math.round(Math.max(...depegs) * 10) / 10 : null;
+
+  return {
+    worst,
+    feeds: results,
+    max_stablecoin_depeg_bps: maxDepegBps,
+    as_of: new Date().toISOString(),
+  };
+}
+
 // Pull the live oracle health for a feed: confidence interval width + publish
 // staleness are the two signals that actually predict oracle-driven liquidations.
 export async function fetchOracleHealth(

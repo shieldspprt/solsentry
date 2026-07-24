@@ -17,7 +17,14 @@
 
 ## ⚡ Overview
 
-**SolSentry** is an open-source, decision-grade quantitative risk engine, real-time transaction simulator, and policy guardrail middleware for **Solana AI trading agents and autonomous bots**.
+**Never sign a drainer.** SolSentry runs your agent's transaction against mainnet *without broadcasting it*, reports exactly which tokens leave the wallet, and flags known wallet-drainer instruction patterns before a signature is ever produced.
+
+```ts
+const check = await sentry.simulate(serializedTx);
+if (check.drainerScan.isDrainerPattern) return;   // do not sign
+```
+
+Around that sits an open-source, provenance-tagged protocol risk engine and policy guardrail middleware for **Solana AI trading agents and autonomous bots**.
 
 SolSentry acts as a trusted **pre-flight security gateway** before any AI agent broadcasts a transaction on Solana mainnet. It calculates multi-factor risk scores, detects malicious wallet drainer instruction patterns, simulates pre-execution token balance deltas, and enforces strict financial policy guardrails (single transaction caps, daily volume limits, drawdown thresholds, and minimum protocol safety floors).
 
@@ -37,8 +44,8 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
            ┌───────────────────────────────────┼───────────────────────────────────┐
            │                                   │                                   │
 ┌──────────▼──────────┐             ┌──────────▼──────────┐             ┌──────────▼──────────┐
-│  Pyth Hermes Oracle │             │  Solana Mainnet RPC │             │ RugCheck & DefiLlama│
-│ (Live De-peg & BPS) │             │ (Simulate & Deltas) │             │  (Tokens & TVL Data)│
+│  Pyth · per-protocol│             │  Solana Mainnet RPC │             │ DeFiLlama · Jupiter │
+│ feeds + depeg (bps) │             │ (Simulate & Deltas) │             │ TVL/fees·hacks·token│
 └─────────────────────┘             └─────────────────────┘             └─────────────────────┘
 ```
 
@@ -46,11 +53,11 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
 
 ## ✨ Key Capabilities
 
-- 🛡️ **Provenance-Tagged Scoring Model (v3)**: Seven risk factors, each tagged with its data source, timestamp and confidence. **A factor with no live source is reported as `unmeasured` — it scores nothing and its weight is redistributed across the factors that do have data.** The response carries a `factor_coverage` object so a caller can see exactly how much of the model is grounded, and the engine withholds a directional recommendation below 50% coverage. See [Factor coverage](#-factor-coverage-what-is-actually-measured).
-- ⚡ **Transaction Pre-Execution Simulator**: Deserializes raw Solana base58/base64 transactions, replaces recent blockhashes, executes RPC simulation with `sigVerify: false`, tracks Compute Units (CU), and computes exact incoming vs. outgoing SOL/SPL token balance deltas.
-- 🚨 **Wallet Drainer Pattern Detector**: Scans instruction logs for malicious sequences (`Approve` or `SetAuthority` followed by immediate `Transfer`/`CloseAccount`, or >90% account balance drains).
+- 🚨 **Wallet Drainer Detection (the lead capability)**: Deserializes a raw base58/base64 transaction, simulates it against mainnet RPC with `sigVerify: false`, and scans the instruction sequence for drainer patterns — `Approve`/`SetAuthority` followed by an immediate `Transfer`/`CloseAccount`, or a >90% balance sweep. Read-only, needs no key material, broadcasts nothing.
+- 🛡️ **Provenance-Tagged Scoring Model (v3)**: Eight risk factors, each tagged with its data source, timestamp and confidence. **A factor with no live source is reported as `unmeasured` — it scores nothing and its weight is redistributed across the factors that do have data.** The response carries a `factor_coverage` object so a caller can see exactly how much of the model is grounded, and the engine withholds a directional recommendation below 50% coverage. See [Factor coverage](#-factor-coverage-what-is-actually-measured).
+- ⚡ **Transaction Pre-Execution Simulator**: Replaces recent blockhashes, tracks Compute Units, and computes exact incoming vs. outgoing SOL/SPL token balance deltas.
 - 📉 **Stress Testing & Historical Backtesting Engine**: Simulates adverse price shocks (-10%, -20%, -35%) and historical market crash scenarios (Nov 2022 FTX, March 2023 USDC de-peg, Feb 2022 Wormhole hack) to evaluate policy guardrail protection.
-- 💳 **x402 Pay-As-You-Go USDC Micropayments (`@solsentry/payment`)**: Native Solana Pay USDC micro-payments (`X-402-Payment` header) per MCP/API call.
+- 💳 **x402 Pay-As-You-Go USDC Micropayments (`@solsentry/payment`)**: Solana Pay USDC micro-payments via the `X-402-Payment` header, enforced on `/api/v1/simulate`. **Off unless `X402_RECIPIENT_WALLET` is set** — every endpoint is free until you configure a wallet.
 - 🤖 **Autonomy Policy Engine (`@solsentry/agent-autonomy`)**: De-leverage sizing, rebalancing plans, and circuit-breaker halts. It computes *what* to do and by how much; it does not build or sign transactions — execution stays with your agent.
 - 💻 **Official Developer CLI (`@solsentry/cli`)**: Standalone terminal binary for instant protocol risk checks, transaction simulation, and policy evaluation.
 - 📦 **Multi-Framework Integrations**:
@@ -65,25 +72,37 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
 
 ## 📊 Factor coverage: what is actually measured
 
-The scoring model has seven factors. Not all of them can be grounded in a public
-data source today, and SolSentry does not pretend otherwise — an unmeasured
-factor returns `score: null`, `source: "unmeasured"`, and contributes nothing.
+Eight factors. An unmeasured one returns `score: null`, `source: "unmeasured"`,
+and contributes nothing — its weight is redistributed across the rest.
 
-| Factor | Nominal weight | Source | Status |
+| Factor | Weight | Source | Status |
 |---|---|---|---|
-| Audit & Governance | 20% | Protocol registry + published governance docs | ✅ Measured |
-| Liquidation & Rekt Risk | 20% | — | ⬜ Unmeasured — protocol-wide near-liquidation ratios need per-obligation indexing. Use `solsentry_get_position_health` with a wallet for real, position-level liquidation risk. |
-| Market Integrity | 15% | Jupiter Token API (organic-activity score) | ✅ Measured — scores the **governance token's** market: organic vs bot/arbitrage volume, plus mint/freeze authority status. A proxy for manipulation and dump risk, **not** for sandwich risk on a swap through the protocol. |
-| Whale Concentration | 15% | Helius `getTokenLargestAccounts` | ✅ Measured (protocols with a mapped token mint) |
-| Oracle Latency & Depeg | 10% | Pyth Hermes (publish staleness + confidence width) | ✅ Measured |
-| Developer Activity | 10% | GitHub REST API (commits + contributors, 30d) | ✅ Measured (set `GITHUB_TOKEN` — 60 req/hr unauthenticated is not enough for the full index) |
-| Business Efficiency | 10% | DeFiLlama (TVL, fee series, category share) | ✅ Measured |
+| **Exploit History** | **25%** | DeFiLlama hacks dataset | ✅ Measured — realized losses, decayed by age. **Can force a `block` verdict on its own** (see below). |
+| Audit & Governance | 15% | Protocol registry + published governance docs | ✅ Measured |
+| Liquidation & Rekt Risk | 15% | — | ⬜ Unmeasured — protocol-wide near-liquidation ratios need per-obligation indexing. Use `solsentry_get_position_health` with a wallet for real, position-level liquidation risk. |
+| Oracle Health & Depeg | 15% | Pyth Hermes, **per protocol** | ✅ Measured — scores the *weakest* feed a protocol's solvency depends on (Kamino checks 5 feeds; Jito's worst is JITOSOL/USD), plus stablecoin deviation from $1.00. |
+| Whale Concentration | 10% | Helius `getTokenLargestAccounts`, Jupiter as fallback | ✅ Measured |
+| Market Integrity | 10% | Jupiter Token API (organic-activity score) | ✅ Measured — the **governance token's** market: organic vs bot/arbitrage volume, plus mint/freeze authority. A proxy for manipulation and dump risk, **not** for sandwich risk on a swap. |
+| Developer Activity | 5% | GitHub REST API (commits + contributors, 30d) | ✅ Measured — scores *abandonment*, not commit volume. Set `GITHUB_TOKEN`. |
+| Business Efficiency | 5% | DeFiLlama (TVL, fee series, category share) | ✅ Measured |
 
-Live coverage is **80% of model weight** (6 of 7 factors) with `GITHUB_TOKEN` set. Without it,
-GitHub's 60 req/hr unauthenticated limit is exhausted by roughly two full index scorings and
-Developer Activity drops to unmeasured, taking coverage to **70%**. Every API response and every
-protocol page states its own coverage; below 50% the engine returns `HOLD` and
-withholds a directional call rather than inferring one from too little evidence.
+Live coverage is **~86% of model weight** (7 of 8 factors) with `GITHUB_TOKEN` set.
+Every API response and every protocol page states its own coverage; below 50% the engine returns
+`HOLD` and withholds a directional call rather than inferring one from too little evidence.
+
+### Exploit history can override the composite
+
+A realized loss is the only factor describing what has actually *happened* to a protocol rather
+than how it looks. Averaging it into seven healthy-looking co-factors buries it, so it gates the
+verdict directly:
+
+- A loss ≥ **$10M** within **180 days** → verdict forced to `block`
+- A loss ≥ **$1M** within 180 days → capped at `avoid`
+- Older incidents still lower the score, decaying to ~10% weight over three years
+
+Live example: Drift scores well on audits, TVL and holder concentration, but lost **$295M** to an
+admin-key compromise 114 days ago. Composite alone puts it mid-pack; the engine returns
+**`block`**. Before this factor existed, no protocol had ever received one.
 
 **Positions are never simulated.** `positions/read`, `stress_test` and
 `get_position_health` operate only on real on-chain data read for a wallet

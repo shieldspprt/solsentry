@@ -58,7 +58,7 @@ export async function handleCheckProtocolRisk(args: unknown) {
     tvlUsd = grounded.tvl_usd ?? protocolRecord.tvl_usd;
     breakdown = computeProtocolRisk(
       { ...protocolRecord, institutional_metrics: grounded.metrics },
-      { provenance: grounded.provenance }
+      { provenance: grounded.provenance, incidents: grounded.incidents }
     );
   } catch {
     breakdown = computeProtocolRisk(protocolRecord);

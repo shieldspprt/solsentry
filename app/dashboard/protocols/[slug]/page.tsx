@@ -49,7 +49,7 @@ export default async function ProtocolDetailPage({ params }: ProtocolDetailPageP
     protocol = { ...protocol, tvl_usd: grounded.tvl_usd ?? protocol.tvl_usd };
     breakdown = computeProtocolRisk(
       { ...protocol, institutional_metrics: grounded.metrics },
-      { provenance: grounded.provenance }
+      { provenance: grounded.provenance, incidents: grounded.incidents }
     );
     sourcesLive = grounded.sources_live;
     sourcesUnavailable = grounded.sources_unavailable;

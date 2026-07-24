@@ -63,9 +63,9 @@ describe('Property-Based Fuzz Testing for Risk Scorer', () => {
       expect(res.composite_risk_score).toBeLessThanOrEqual(10);
       expect(res.safety_score).toBe(res.composite_risk_score);
       expect(res.data_quality).toBeDefined();
-      expect(res.data_quality?.total_sources_count).toBe(7);
+      expect(res.data_quality?.total_sources_count).toBe(8);
       expect(res.data_quality?.live_sources_count).toBeGreaterThanOrEqual(0);
-      expect(res.data_quality?.live_sources_count).toBeLessThanOrEqual(7);
+      expect(res.data_quality?.live_sources_count).toBeLessThanOrEqual(8);
 
       // Effective weights over measured factors always renormalise to 1.0
       // (or to 0 when nothing at all is measured).
@@ -86,7 +86,7 @@ describe('Property-Based Fuzz Testing for Risk Scorer', () => {
 
       // Coverage must agree with the factor list.
       expect(res.factor_coverage.measured_factors).toBe(measured.length);
-      expect(res.factor_coverage.unmeasured.length).toBe(7 - measured.length);
+      expect(res.factor_coverage.unmeasured.length).toBe(8 - measured.length);
 
       // The confidence band always brackets the point score.
       expect(res.confidence!.score_band_low).toBeLessThanOrEqual(res.composite_risk_score);
