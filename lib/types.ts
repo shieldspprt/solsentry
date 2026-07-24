@@ -153,7 +153,12 @@ export type FactorKey =
   | 'whale_concentration'
   | 'oracle_depeg'
   | 'web_community'
-  | 'business_efficiency';
+  | 'business_efficiency'
+  | 'smart_money_flows'
+  | 'social_sentiment_velocity'
+  | 'validator_concentration'
+  | 'bridge_security'
+  | 'insurance_coverage';
 
 // Provenance + confidence attached to a single driving metric.
 export interface FactorProvenance {

@@ -1,0 +1,27 @@
+{
+  "name": "@solsentry/cli",
+  "version": "1.0.0",
+  "description": "SolSentry CLI for AI Agent Risk Management",
+  "bin": {
+    "solsentry": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@solsentry/sdk": "*",
+    "@solana/web3.js": "^1.95.8",
+    "commander": "^12.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0",
+    "table": "^6.8.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^20.17.16"
+  }
+}

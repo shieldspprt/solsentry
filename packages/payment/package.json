@@ -1,0 +1,20 @@
+{
+  "name": "@solsentry/payment",
+  "version": "1.0.0",
+  "description": "Pay-as-you-go USDC payment handler for SolSentry MCP calls",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.8",
+    "@solana/spl-token": "^0.4.9",
+    "bs58": "^5.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^20.17.16"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@solsentry/agent-autonomy",
+  "version": "1.0.0",
+  "description": "Autonomous agent features for SolSentry: auto-deleveraging, rebalancing, circuit breakers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.8",
+    "@solsentry/core": "*",
+    "@solsentry/sdk": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^20.17.16"
+  }
+}
