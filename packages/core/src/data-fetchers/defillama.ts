@@ -30,7 +30,11 @@ const FEE_SLUGS: Record<string, string> = {
 export async function fetchProtocolFees(protocolSlug: string): Promise<ProtocolFeesData | null> {
   const feeSlug = FEE_SLUGS[protocolSlug] || protocolSlug;
   try {
-    const res = await safeFetchWithRetry(`https://api.llama.fi/summary/fees/${feeSlug}?dataType=dailyFees`, { timeoutMs: 5000 });
+    // Fee summaries carry a full daily series too, so they get the same budget.
+    const res = await safeFetchWithRetry(`https://api.llama.fi/summary/fees/${feeSlug}?dataType=dailyFees`, {
+      timeoutMs: 15000,
+      cache: 'no-store',
+    });
     if (!res || !res.ok) return null;
     const data = await res.json();
 
@@ -97,7 +101,16 @@ export async function fetchProtocolTvl(protocolSlug: string): Promise<ProtocolTv
   if (NO_TVL_SLUGS.has(protocolSlug)) return null;
   const tvlSlug = TVL_SLUGS[protocolSlug] || protocolSlug;
   try {
-    const res = await safeFetchWithRetry(`https://api.llama.fi/protocol/${tvlSlug}`, { timeoutMs: 5000 });
+    // /protocol/{slug} returns the protocol's ENTIRE TVL history — ~1,850 points
+    // and 2-9MB per response — when all we read is the last entry. Nine of these
+    // run concurrently alongside the 11MB category fetch, and a 5s budget was
+    // not enough: Meteora and others intermittently timed out, silently dropping
+    // business_efficiency to unmeasured. Also skip Next's fetch cache, which
+    // rejects anything over 2MB and logs a stack trace for every call.
+    const res = await safeFetchWithRetry(`https://api.llama.fi/protocol/${tvlSlug}`, {
+      timeoutMs: 20000,
+      cache: 'no-store',
+    });
     if (!res || !res.ok) return null;
     const data = await res.json();
     const tvl = data?.tvl?.[data.tvl.length - 1]?.totalLiquidityUSD;

@@ -395,6 +395,40 @@ Activity will keep dropping in and out of the composite. This is exactly the dia
 `sourcesUnavailable` field exists to make possible — before this audit the same failure would
 have silently produced a confident score built on a constant.
 
+### R5 — Next.js was silently serving "live" telemetry from disk
+
+Found while verifying that a newly-supplied `GITHUB_TOKEN` was actually in use.
+
+Next.js caches `fetch` GETs on disk by default. Every data-fetcher goes through
+`lib/safe-fetch.ts`, which did not opt out — so a cold server could return full factor
+coverage while making **zero outbound requests**, and each reading was still stamped with a
+freshly generated `as_of`. On disk at the time of discovery:
+
+```
+api.github.com:        10 cached entries
+api.llama.fi:          14 cached entries
+hermes.pyth.network:    1 cached entry
+```
+
+The Pyth entry is the serious one: publish-staleness is precisely what the oracle factor
+measures, so a cached response scores a stale oracle against its own cached timestamp.
+
+`safeFetch` now defaults to `cache: 'no-store'`. Callers wanting caching must opt in, which
+puts that decision at the call site. The in-process caches with explicit TTLs (GitHub 6h,
+Jupiter 10min, category TVL 30min) are unaffected — those are deliberate and their staleness
+is bounded and documented.
+
+Also raised the DeFiLlama timeouts from 5s to 20s/15s. `/protocol/{slug}` returns a protocol's
+entire TVL history (~1,850 points, 2–9MB) when only the last value is read, and nine of those
+run concurrently with an 11MB category fetch. Meteora and others were intermittently timing out
+and silently dropping `business_efficiency` to unmeasured.
+
+**Verification note.** `GET /rate_limit` reported `used: 0` even immediately after a confirmed
+API call, which briefly suggested the app was not calling GitHub at all. That endpoint is
+unreliable here; the authoritative signal is the per-response `x-ratelimit-*` headers, which
+showed `limit: 5000` (vs 60 unauthenticated) and `used: 75`. Confirmed conclusively by
+recomputing Kamino's figures independently — `commits=4, devs=3`, matching the engine exactly.
+
 ---
 
 ## Outcome

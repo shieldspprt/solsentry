@@ -2,13 +2,22 @@ export interface SafeFetchOptions extends RequestInit {
   timeoutMs?: number;
 }
 
+// Every caller of this helper is reading live external state — oracle prices,
+// on-chain holders, TVL, commit activity. Next.js caches `fetch` GETs on disk by
+// default, which silently turned that into stale state: a cold server returned
+// full factor coverage while making zero outbound requests, and each reading was
+// still stamped with a fresh `as_of`. A cached Pyth response is the worst case,
+// since publish-staleness is precisely what the oracle factor measures.
+//
+// So no-store is the default here. A caller that genuinely wants caching must
+// opt in explicitly, which makes that decision visible at the call site.
 export async function safeFetch(url: string, opts: SafeFetchOptions = {}): Promise<Response> {
   const { timeoutMs = 4000, ...rest } = opts;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    return await fetch(url, { ...rest, signal: controller.signal });
+    return await fetch(url, { cache: 'no-store', ...rest, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
