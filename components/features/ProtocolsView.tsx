@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
@@ -8,22 +9,25 @@ import { Button } from '../ui/Button';
 import { ProtocolRecord } from '../../lib/types';
 import { computeProtocolRisk } from '../../packages/core/src/risk-scorer';
 import { formatCompactCurrency } from '../../lib/formatters';
+import { useProtocols } from '../../hooks/use-sentry-swr';
 
 export interface ProtocolsViewProps {
   protocols: ProtocolRecord[];
 }
 
-export const ProtocolsView: React.FC<ProtocolsViewProps> = ({ protocols }) => {
+export const ProtocolsView: React.FC<ProtocolsViewProps> = ({ protocols: initialProtocols }) => {
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const { protocols, mutate } = useProtocols(initialProtocols);
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
       await fetch('/api/v1/sync', { method: 'POST' });
-      window.location.reload();
+      await mutate();
     } catch {
-      window.location.reload();
+      await mutate();
     } finally {
       setIsSyncing(false);
     }
@@ -71,9 +75,9 @@ export const ProtocolsView: React.FC<ProtocolsViewProps> = ({ protocols }) => {
                     {protocol.name.charAt(0)}
                   </div>
                   <div>
-                    <a href={`/dashboard/protocols/${protocol.slug}`} className="font-extrabold text-slate-100 hover:text-cyan-300 transition-colors block text-base">
+                    <Link href={`/dashboard/protocols/${protocol.slug}`} className="font-extrabold text-slate-100 hover:text-cyan-300 transition-colors block text-base">
                       {protocol.name}
-                    </a>
+                    </Link>
                     <span className="text-xs text-slate-300 font-semibold uppercase tracking-wider">{protocol.category}</span>
                   </div>
                 </div>
@@ -109,9 +113,11 @@ export const ProtocolsView: React.FC<ProtocolsViewProps> = ({ protocols }) => {
               </div>
 
               <div className="pt-2 flex justify-end">
-                <Button variant="secondary" size="sm" onClick={() => window.location.href = `/dashboard/protocols/${protocol.slug}`}>
-                  Analysis
-                </Button>
+                <Link href={`/dashboard/protocols/${protocol.slug}`}>
+                  <Button variant="secondary" size="sm">
+                    Analysis
+                  </Button>
+                </Link>
               </div>
             </Card>
           );

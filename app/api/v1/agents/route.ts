@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/supabase-admin';
 import { sanitizeText } from '../../../../lib/validation';
+import { DEFAULT_SOLANA_AGENTS } from '../../../../lib/default-agents';
+
+export async function GET() {
+  try {
+    let agents = DEFAULT_SOLANA_AGENTS;
+    const supabase = getSupabaseAdmin();
+    if (supabase) {
+      const { data, error } = await supabase.from('agents').select('*');
+      if (!error && data && data.length > 0) {
+        agents = data as any;
+      }
+    }
+    return NextResponse.json(agents, {
+      status: 200,
+      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
+    });
+  } catch {
+    return NextResponse.json(DEFAULT_SOLANA_AGENTS, {
+      status: 200,
+      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
+    });
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +40,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getSupabaseAdmin();
+    if (!supabase) {
+      return NextResponse.json({ success: true, agent: { name, description } });
+    }
+
     const { data, error } = await supabase
       .from('agents')
       .insert({

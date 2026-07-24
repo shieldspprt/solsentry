@@ -13,6 +13,7 @@ import { SolanaEpochProgressCard } from './SolanaEpochProgressCard';
 import { ImminentRektRadarCard } from './ImminentRektRadarCard';
 import { formatCompactCurrency } from '../../lib/formatters';
 import { computeProtocolRisk } from '../../packages/core/src/risk-scorer';
+import { useProtocols, usePositions } from '../../hooks/use-sentry-swr';
 
 export interface DashboardViewProps {
   protocols: ProtocolRecord[];
@@ -31,8 +32,8 @@ function decisionLabel(action: string): string {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  protocols,
-  positions = [],
+  protocols: initialProtocols,
+  positions: initialPositions = [],
   agentCount,
   recentChecksCount,
   epochData,
@@ -40,15 +41,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const { protocols, mutate: mutateProtocols } = useProtocols(initialProtocols);
+  const { positions, mutate: mutatePositions } = usePositions(initialPositions);
+
   const totalTvl = protocols.reduce((acc, p) => acc + (p.tvl_usd || 0), 0);
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
       await fetch('/api/v1/sync', { method: 'POST' });
-      window.location.reload();
+      await Promise.all([mutateProtocols(), mutatePositions()]);
     } catch {
-      window.location.reload();
+      await mutateProtocols();
     } finally {
       setIsSyncing(false);
     }

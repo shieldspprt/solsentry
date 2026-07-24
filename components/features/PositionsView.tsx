@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { Card } from '../ui/Card';
@@ -11,17 +12,20 @@ import { PositionRecord } from '../../lib/types';
 import { formatCurrency, formatCompactCurrency } from '../../lib/formatters';
 import { evaluatePositionHealth } from '../../packages/core/src/position-monitor';
 import { LiveWalletPositions } from './LiveWalletPositions';
+import { usePositions } from '../../hooks/use-sentry-swr';
 
 export interface PositionsViewProps {
   positions?: PositionRecord[];
 }
 
-export const PositionsView: React.FC<PositionsViewProps> = ({ positions = [] }) => {
+export const PositionsView: React.FC<PositionsViewProps> = ({ positions: initialPositions = [] }) => {
   const { publicKey, sendTransaction, connected } = useWallet();
   const { connection } = useConnection();
 
   const [executingId, setExecutingId] = useState<string | null>(null);
   const [txSuccessMsg, setTxSuccessMsg] = useState<string | null>(null);
+
+  const { positions } = usePositions(initialPositions);
 
   const evaluations = positions.map((p) => ({
     position: p,
@@ -70,9 +74,9 @@ export const PositionsView: React.FC<PositionsViewProps> = ({ positions = [] }) 
       key: 'protocol_slug',
       header: 'Protocol',
       render: (row) => (
-        <a href={`/dashboard/protocols/${row.protocol_slug}`} className="font-extrabold text-slate-100 hover:text-cyan-300 uppercase font-mono text-sm">
+        <Link href={`/dashboard/protocols/${row.protocol_slug}`} className="font-extrabold text-slate-100 hover:text-cyan-300 uppercase font-mono text-sm">
           {row.protocol_slug}
-        </a>
+        </Link>
       ),
     },
     {

@@ -8,22 +8,27 @@ import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
 import { AgentRecord } from '../../lib/types';
 import { formatTruncateAddress } from '../../lib/formatters';
+import { useAgents } from '../../hooks/use-sentry-swr';
 
 export interface AgentsViewProps {
   initialAgents?: AgentRecord[];
 }
 
 export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) => {
-  const [agents, setAgents] = useState<AgentRecord[]>(initialAgents);
+  const { agents, mutate } = useAgents(initialAgents);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [agentType, setAgentType] = useState('custom');
   const [walletAddress, setWalletAddress] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleCreateAgent = () => {
+  const handleCreateAgent = async () => {
     if (!name) return;
+    setLoading(true);
+
     const newAgent: AgentRecord = {
-      id: `ag_${Math.random().toString(36).substr(2, 9)}`,
+      id: `ag_${Math.random().toString(36).substring(2, 9)}`,
       user_id: 'user_1',
       name,
       description: 'Registered AI Trading Agent',
@@ -33,10 +38,25 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    setAgents([newAgent, ...agents]);
-    setName('');
-    setWalletAddress('');
-    setIsModalOpen(false);
+
+    // Optimistically update SWR cache
+    await mutate([newAgent, ...agents], false);
+
+    try {
+      await fetch('/api/v1/agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, description: 'Registered AI Trading Agent' }),
+      });
+      await mutate();
+    } catch {
+      await mutate();
+    } finally {
+      setName('');
+      setWalletAddress('');
+      setIsModalOpen(false);
+      setLoading(false);
+    }
   };
 
   return (
@@ -44,7 +64,7 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-extrabold text-slate-100 tracking-tight">AI Agents</h2>
-          <p className="text-sm text-slate-300 mt-1">Manage AI agents connected to AgentGate risk middleware</p>
+          <p className="text-sm text-slate-300 mt-1">Manage AI agents connected to SolSentry risk middleware</p>
         </div>
         <Button variant="primary" onClick={() => setIsModalOpen(true)}>
           Register Agent
@@ -90,8 +110,8 @@ export const AgentsView: React.FC<AgentsViewProps> = ({ initialAgents = [] }) =>
             <Button variant="ghost" size="sm" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
-            <Button variant="primary" size="sm" onClick={handleCreateAgent}>
-              Create Agent
+            <Button variant="primary" size="sm" onClick={handleCreateAgent} disabled={loading || !name}>
+              {loading ? 'Creating...' : 'Create Agent'}
             </Button>
           </>
         }

@@ -4,10 +4,14 @@ import { evaluatePositionHealth } from '../../../../../packages/core/src/positio
 import { runStandardStressSuite } from '../../../../../packages/core/src/stress-engine';
 import { sanitizeText } from '../../../../../lib/validation';
 import { logger } from '../../../../../lib/logger';
+import { DEFAULT_SOLANA_POSITIONS } from '../../../../../lib/default-positions';
 
 async function handleReadPositions(walletAddress: string, userId: string | null) {
   if (!walletAddress) {
-    return NextResponse.json({ error: 'invalid_input', message: 'walletAddress is required' }, { status: 400 });
+    return NextResponse.json(DEFAULT_SOLANA_POSITIONS, {
+      status: 200,
+      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
+    });
   }
   if (!isValidSolanaAddress(walletAddress)) {
     return NextResponse.json({ error: 'invalid_input', message: 'Invalid Solana wallet address' }, { status: 400 });
@@ -35,19 +39,24 @@ async function handleReadPositions(walletAddress: string, userId: string | null)
 
   logger.info('positions_read', { wallet: walletAddress, userId, count: evaluated.length });
 
-  return NextResponse.json({
-    wallet: walletAddress,
-    dataSource: 'onchain_wallet',
-    sourcesLive: live.sources_live,
-    sourcesUnavailable: live.sources_failed,
-    asOf: live.as_of,
-    totalOpenPositions: evaluated.length,
-    imminentLiquidationRiskCount: imminent,
-    positions: evaluated,
-    stressScenarios: stress,
-    safetyRecommendation:
-      imminent > 0 ? 'CRITICAL_ACTION_REQUIRED' : evaluated.length === 0 ? 'NO_OPEN_POSITIONS' : 'HEALTHY_BOUNDS',
-  });
+  return NextResponse.json(
+    {
+      wallet: walletAddress,
+      dataSource: 'onchain_wallet',
+      sourcesLive: live.sources_live,
+      sourcesUnavailable: live.sources_failed,
+      asOf: live.as_of,
+      totalOpenPositions: evaluated.length,
+      imminentLiquidationRiskCount: imminent,
+      positions: evaluated,
+      stressScenarios: stress,
+      safetyRecommendation:
+        imminent > 0 ? 'CRITICAL_ACTION_REQUIRED' : evaluated.length === 0 ? 'NO_OPEN_POSITIONS' : 'HEALTHY_BOUNDS',
+    },
+    {
+      headers: { 'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=59' },
+    }
+  );
 }
 
 export async function POST(request: NextRequest) {
