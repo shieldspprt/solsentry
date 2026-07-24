@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Input } from '../ui/Input';
@@ -13,6 +14,7 @@ import { formatCurrency, formatCompactCurrency } from '../../lib/formatters';
 import { ProtocolBusinessRatiosSection } from './ProtocolBusinessRatiosSection';
 import { ProtocolWebTelemetrySection } from './ProtocolWebTelemetrySection';
 import { ProtocolDecisionSection } from './ProtocolDecisionSection';
+import { useProtocolRisk } from '../../hooks/use-sentry-swr';
 
 export interface ProtocolDetailViewProps {
   protocol: ProtocolRecord;
@@ -21,14 +23,12 @@ export interface ProtocolDetailViewProps {
 export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'risk_factors' | 'program_verification'>('overview');
 
-  const breakdown = computeProtocolRisk(protocol);
+  const initialBreakdown = computeProtocolRisk(protocol);
+  const { riskData } = useProtocolRisk(protocol.slug, initialBreakdown);
+  const breakdown = riskData || initialBreakdown;
+
   const m = breakdown.quant_metrics;
-  const pos = m.position_telemetry || {
-    total_open_positions: 12500,
-    positions_near_liquidation_count: 12,
-    positions_near_liquidation_usd: 280000,
-    average_health_factor: 1.72,
-  };
+  const pos = m.position_telemetry!;
 
   const [simAmount, setSimAmount] = useState(500);
   const [simAction, setSimAction] = useState<ActionType>('swap');
@@ -49,9 +49,9 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
   return (
     <div className="space-y-8 max-w-5xl">
       <div>
-        <a href="/dashboard/protocols" className="text-sm font-semibold text-cyan-400 hover:underline mb-3 inline-block">
-          Back to Protocols Index
-        </a>
+        <Link href="/dashboard/protocols" className="text-sm font-semibold text-cyan-400 hover:underline mb-3 inline-block">
+          ← Back to Protocols Index
+        </Link>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-slate-950/80 border border-slate-800">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center font-extrabold text-cyan-300 text-xl shrink-0">

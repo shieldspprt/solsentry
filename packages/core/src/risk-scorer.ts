@@ -338,7 +338,24 @@ export function computeProtocolRisk(
   protocol: Partial<ProtocolRecord>,
   opts: RiskScoreOptions = {}
 ): InstitutionalFactorsBreakdown {
-  const metrics = protocol.institutional_metrics || getDefaultMetricsForProtocol(protocol.slug || '');
+  const defaultMetrics = getDefaultMetricsForProtocol(protocol.slug || '');
+  const metrics: InstitutionalRiskMetrics = {
+    ...defaultMetrics,
+    ...(protocol.institutional_metrics || {}),
+    business_ratios: {
+      ...defaultMetrics.business_ratios,
+      ...(protocol.institutional_metrics?.business_ratios || {}),
+    } as any,
+    position_telemetry: {
+      ...defaultMetrics.position_telemetry,
+      ...(protocol.institutional_metrics?.position_telemetry || {}),
+    } as any,
+    web_community: {
+      ...defaultMetrics.web_community,
+      ...(protocol.institutional_metrics?.web_community || {}),
+    } as any,
+  };
+
   const nowIso = opts.now || metrics.last_synced_at || new Date().toISOString();
   const warnings: string[] = [];
 
