@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS protocols (
   oracle_provider TEXT,
   oracle_health TEXT DEFAULT 'unknown',
   risk_score NUMERIC,
+  institutional_metrics JSONB DEFAULT '{}',
   last_updated TIMESTAMPTZ NOT NULL DEFAULT now(),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -14,6 +14,8 @@ export const ProtocolWebTelemetrySection: React.FC<ProtocolWebTelemetrySectionPr
   const m = breakdown.quant_metrics;
   const web = m.web_community!;
 
+  const isLive = (m.data_freshness_pct || 0) > 50;
+
   return (
     <Card title="Web & Developer Telemetry" subtitle="Web traffic, social sentiment, domain security, and GitHub developer metrics">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
@@ -36,9 +38,11 @@ export const ProtocolWebTelemetrySection: React.FC<ProtocolWebTelemetrySectionPr
         </div>
 
         <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800">
-          <span className="text-slate-400 font-semibold uppercase text-xs block">Data Freshness</span>
+          <span className="text-slate-400 font-semibold uppercase text-xs block">Telemetry Source</span>
           <span className="text-2xl font-extrabold text-cyan-300 mt-2 block">{m.data_freshness_pct}%</span>
-          <span className="text-xs text-slate-300 mt-1 block font-mono">Pyth Oracle Telemetry</span>
+          <span className={`text-xs font-semibold mt-1 block ${isLive ? 'text-emerald-400' : 'text-slate-400'}`}>
+            {isLive ? '🟢 Live Pyth & Helius Sync' : '⚪ Model Baseline'}
+          </span>
         </div>
       </div>
     </Card>

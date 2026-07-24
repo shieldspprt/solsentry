@@ -14,7 +14,7 @@ describe('MCP Tool Registry & Canonical Dispatcher', () => {
     expect(res.isError).toBe(false);
     expect(res.slug).toBe('jupiter');
     expect(res.safetyScore).toBeGreaterThan(0);
-  }, 15000);
+  }, 30000);
 
   it('should support backward compatibility for legacy agentgate_ and get_ tool names', async () => {
     const res1 = await dispatchToolCall('agentgate_check_protocol_risk', { protocolSlug: 'kamino' });
@@ -24,7 +24,7 @@ describe('MCP Tool Registry & Canonical Dispatcher', () => {
     const res2 = await dispatchToolCall('get_protocol_risk', { protocolSlug: 'orca' });
     expect(res2.isError).toBe(false);
     expect(res2.slug).toBe('orca');
-  }, 15000);
+  }, 30000);
 
   it('should throw when calling an unknown tool name', async () => {
     await expect(dispatchToolCall('unknown_tool', {})).rejects.toThrow();

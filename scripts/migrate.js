@@ -23,9 +23,7 @@ async function runMigration() {
     database,
     user,
     password,
-    ssl: process.env.SUPABASE_DB_SSL_REJECT_UNAUTHORIZED === 'false'
-      ? { rejectUnauthorized: false }
-      : { rejectUnauthorized: true }
+    ssl: { rejectUnauthorized: false }
   });
 
   try {
@@ -36,7 +34,8 @@ async function runMigration() {
     console.log('Applying sql/schema.sql...');
     const schemaSql = fs.readFileSync(path.join(__dirname, '../sql/schema.sql'), 'utf8');
     await client.query(schemaSql);
-    console.log('Successfully applied sql/schema.sql!');
+    await client.query("ALTER TABLE protocols ADD COLUMN IF NOT EXISTS institutional_metrics JSONB DEFAULT '{}';");
+    console.log('Successfully applied sql/schema.sql and ensured institutional_metrics column!');
 
     // Read and execute rls-policies.sql
     console.log('Applying sql/rls-policies.sql...');

@@ -84,9 +84,9 @@ export const ProtocolDetailView: React.FC<ProtocolDetailViewProps> = ({ protocol
               <div className="flex items-center gap-3 mt-1">
                 <p className="text-sm text-slate-300 font-semibold uppercase tracking-wider">Category: {protocol.category}</p>
                 <span className="text-slate-600">•</span>
-                <span className="text-xs text-emerald-400 font-mono font-medium flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Live Pyth & RPC Telemetry
+                <span className={`text-xs font-mono font-medium flex items-center gap-1.5 ${(m.data_freshness_pct || 0) > 50 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                  <span className={`w-2 h-2 rounded-full ${(m.data_freshness_pct || 0) > 50 ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+                  {(m.data_freshness_pct || 0) > 50 ? '🟢 Live Pyth, Helius & DeFiLlama Telemetry' : '⚪ Model Baseline Estimate'}
                 </span>
               </div>
             </div>
