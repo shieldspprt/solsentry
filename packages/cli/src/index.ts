@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { SolSentryClient } from '../../sdk/src/index';
+import { SolSentryClient } from '@solsentry/sdk';
 
 const program = new Command();
 

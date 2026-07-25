@@ -1,37 +1,38 @@
 {
-  "name": "@solsentry/cli",
+  "name": "@solsentry/mcp",
   "version": "3.1.0",
-  "description": "SolSentry command line tool: guard a Solana transaction before signing, score protocol risk, and check policy from your terminal.",
+  "description": "Model Context Protocol server for SolSentry. Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk. Thin stdio proxy; holds no keys.",
   "keywords": [
+    "mcp",
+    "model-context-protocol",
     "solana",
-    "cli",
     "ai-agents",
+    "claude",
+    "cursor",
     "transaction-simulation",
-    "wallet-drainer",
-    "defi-risk"
+    "wallet-drainer"
   ],
   "license": "MIT",
   "homepage": "https://solsentry.io",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shieldspprt/solsentry.git",
-    "directory": "packages/cli"
+    "directory": "packages/mcp"
   },
   "bugs": {
     "url": "https://github.com/shieldspprt/solsentry/issues"
   },
+  "type": "module",
   "bin": {
-    "solsentry": "./dist/index.js"
+    "solsentry-mcp": "./dist/index.js"
   },
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
     "start": "node dist/index.js",
     "prepublishOnly": "npm run build"
   },
@@ -39,12 +40,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@solsentry/sdk": "^3.1.0",
-    "@solana/web3.js": "^1.95.8",
-    "commander": "^12.1.0",
-    "chalk": "^5.3.0",
-    "ora": "^8.1.0",
-    "table": "^6.8.2"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

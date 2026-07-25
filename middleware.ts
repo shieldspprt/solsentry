@@ -101,13 +101,13 @@ export async function middleware(req: NextRequest) {
     const apiKeyHeader = req.headers.get('x-solsentry-api-key');
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : apiKeyHeader;
 
-    // Public endpoints, method-aware: a READ (GET/HEAD) needs no key, but a
-    // mutation (POST/PUT/PATCH/DELETE) to the same path still does. This is the
-    // correct boundary — the dashboard can read these on load, but writing to
-    // them requires authentication. A key may still be supplied on reads to
-    // attribute the call to a user.
-    const isRead = req.method === 'GET' || req.method === 'HEAD';
-    if (PUBLIC_API_PATHS.has(pathname) && isRead && !token) {
+    // Public endpoints need no key. Every path in the set is a read or a
+    // compute endpoint: the GET routes (protocols, openapi, stream) and the
+    // POST routes (mcp, guard, simulate, risk-check, positions/read) that take
+    // a request body as their read verb. None mutate protected state; they are
+    // metered per call via x402, not gated by auth. A key may still be supplied
+    // to attribute the call to a user. Writes are simply not in this set.
+    if (PUBLIC_API_PATHS.has(pathname) && !token) {
       return NextResponse.next();
     }
 

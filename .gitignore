@@ -1,3 +1,59 @@
-```ts
+# Dependencies
+node_modules/
 
-```
+# Build outputs
+.next/
+out/
+dist/
+build/
+target/
+
+# TypeScript
+*.tsbuildinfo
+*.js.map
+
+# Compiled artifacts accidentally emitted into package src/
+packages/*/src/*.js
+packages/*/src/*.d.ts
+
+# Environment
+.env
+.env.local
+*.env.*
+!.env.example
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Python (if present)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+.mypy_cache/
+.pytest_cache/
+
+# Gradle / JVM
+.gradle/
+*.class
+*.jar
+*.war
+*.ear

@@ -1,14 +1,43 @@
 {
   "name": "@solsentry/sdk",
-  "version": "3.0.0",
-  "description": "Official TypeScript SDK for SolSentry Solana AI Agent Quantitative Risk & Guardrail Engine",
+  "version": "3.1.0",
+  "description": "TypeScript SDK for SolSentry: guard a Solana transaction before signing, detect wallet drainers, and score protocol risk from live sources.",
+  "keywords": [
+    "solana",
+    "ai-agents",
+    "transaction-simulation",
+    "wallet-drainer",
+    "defi-risk",
+    "mcp"
+  ],
+  "license": "MIT",
+  "homepage": "https://solsentry.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shieldspprt/solsentry.git",
+    "directory": "packages/sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/shieldspprt/solsentry/issues"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.4.5"
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
