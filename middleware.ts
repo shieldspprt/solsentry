@@ -26,9 +26,6 @@ const PUBLIC_API_PATHS = new Set([
   '/api/v1/guard',
   '/api/v1/stream',
   '/api/v1/mcp',
-  // GET lists registered agents for the dashboard; POST (create) still needs a
-  // key by the method-aware rule below.
-  '/api/v1/agents',
 ]);
 
 const RATE_LIMIT_WINDOW_MS = 60_000;

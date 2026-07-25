@@ -1,6 +1,5 @@
 export type PlanType = 'free' | 'pro' | 'enterprise';
 
-export type AgentType = 'eliza' | 'solana_agent_kit' | 'custom' | 'claude' | 'gpt';
 
 export type ProtocolCategory = 'lending' | 'dex' | 'perps' | 'staking' | 'yield' | 'bridge' | 'launchpad';
 
@@ -34,18 +33,6 @@ export interface UserRecord {
   api_key: string;
   plan: PlanType;
   x402_wallet: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AgentRecord {
-  id: string;
-  user_id: string;
-  name: string;
-  description: string | null;
-  agent_type: AgentType;
-  wallet_address: string | null;
-  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -88,9 +75,6 @@ export interface AgentDecision {
   suggested_strategy: 'increase_collateral' | 'deleverage' | 'exit_protocol' | 'enter_safely' | 'hold';
 }
 
-// Every field is nullable by design. `null` is the honest representation of a
-// metric SolSentry cannot currently observe, and the scorer excludes null-driven
-// factors from the composite instead of scoring them off a constant.
 // Market integrity of a protocol's governance token, from Jupiter's Token API.
 // Scope: the TOKEN's market, not the protocol's own transaction flow.
 export interface TokenMarketIntegrity {
@@ -137,6 +121,9 @@ export interface MarketUtilizationSummary {
   warning: string | null;
 }
 
+// Every field is nullable by design. `null` is the honest representation of a
+// metric SolSentry cannot currently observe, and the scorer excludes null-driven
+// factors from the composite instead of scoring them off a constant.
 export interface InstitutionalRiskMetrics {
   /** Deprecated: never had a source. Superseded by token_market_integrity. */
   bot_density_pct: number | null;

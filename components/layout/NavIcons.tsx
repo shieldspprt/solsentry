@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type NavKey = 'overview' | 'positions' | 'policies' | 'agents' | 'alerts' | 'settings' | 'mcp';
+export type NavKey = 'overview' | 'positions' | 'policies' | 'alerts' | 'settings' | 'mcp' | 'simulator';
 
 const paths: Record<NavKey, React.ReactNode> = {
   overview: (
@@ -19,10 +19,10 @@ const paths: Record<NavKey, React.ReactNode> = {
     </>
   ),
   policies: <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />,
-  agents: (
+  simulator: (
     <>
-      <rect x="4" y="7" width="16" height="12" rx="2.5" />
-      <path d="M9 7V4h6v3M9 13h.01M15 13h.01M12 2v2" />
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M8 9l3 3-3 3M13 15h4" />
     </>
   ),
   alerts: (

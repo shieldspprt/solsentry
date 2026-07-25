@@ -11,19 +11,16 @@ export default async function DashboardPage() {
   // Substituting a plausible-looking number here is how a dead database ends
   // up looking like a healthy one.
   let recentChecksCount: number | null = null;
-  let agentCount: number | null = null;
   let protocols: ProtocolRecord[] = DEFAULT_SOLANA_PROTOCOLS;
 
   try {
     const supabase = getSupabaseAdmin();
-    const [checks, agents, stored] = await Promise.all([
+    const [checks, stored] = await Promise.all([
       supabase.from('risk_checks').select('*', { count: 'exact', head: true }),
-      supabase.from('agents').select('*', { count: 'exact', head: true }),
       supabase.from('protocols').select('*').order('risk_score', { ascending: false }),
     ]);
 
     if (!checks.error) recentChecksCount = checks.count ?? 0;
-    if (!agents.error) agentCount = agents.count ?? 0;
     if (!stored.error && stored.data && stored.data.length > 0) {
       protocols = stored.data as unknown as ProtocolRecord[];
     }
@@ -31,11 +28,5 @@ export default async function DashboardPage() {
     // Counts stay null; the registry falls back to the bundled protocol list.
   }
 
-  return (
-    <DashboardView
-      protocols={protocols}
-      agentCount={agentCount}
-      recentChecksCount={recentChecksCount}
-    />
-  );
+  return <DashboardView protocols={protocols} recentChecksCount={recentChecksCount} />;
 }

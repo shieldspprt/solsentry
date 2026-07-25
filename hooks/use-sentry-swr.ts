@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { ProtocolRecord, PositionRecord, AgentRecord, InstitutionalFactorsBreakdown } from '../lib/types';
+import { ProtocolRecord, PositionRecord, InstitutionalFactorsBreakdown } from '../lib/types';
 
 export interface ScoredProtocol {
   protocol: ProtocolRecord;
@@ -66,29 +66,6 @@ export function usePositions(walletAddress?: string | null) {
     hasWallet: Boolean(walletAddress),
     isLoading,
     isError: Boolean(error),
-    mutate,
-  };
-}
-
-export function useAgents() {
-  const fetcher = async (url: string) => {
-    const res = await fetch(url);
-    const json = await res.json();
-    // 503 carries { error, message, agents: [] } when the store is unreachable.
-    if (!res.ok) throw new Error(json?.message || 'Agent store unavailable');
-    return (Array.isArray(json) ? json : []) as AgentRecord[];
-  };
-
-  const { data, error, isLoading, mutate } = useSWR<AgentRecord[]>('/api/v1/agents', fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 10000,
-  });
-
-  return {
-    agents: data || [],
-    isLoading,
-    isError: Boolean(error),
-    errorMessage: error instanceof Error ? error.message : null,
     mutate,
   };
 }

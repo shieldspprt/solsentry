@@ -16,7 +16,6 @@ import { usePositions, useScoredProtocols } from '../../hooks/use-sentry-swr';
 
 export interface DashboardViewProps {
   protocols: ProtocolRecord[];
-  agentCount: number | null;
   recentChecksCount: number | null;
 }
 
@@ -30,7 +29,6 @@ function decisionLabel(action: string): string {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   protocols: initialProtocols,
-  agentCount,
   recentChecksCount,
 }) => {
   const [search, setSearch] = useState('');
@@ -55,6 +53,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     { live: 0, total: 0 }
   );
   const coveragePct = coverage.total > 0 ? Math.round((coverage.live / coverage.total) * 100) : 0;
+
+  // Protocols the engine is currently gating — the metric that ties the
+  // dashboard to what the product actually does.
+  const flaggedCount = scored.filter(
+    (r) => r.breakdown.action_recommendation === 'block' || r.breakdown.action_recommendation === 'avoid'
+  ).length;
 
   // Re-ground the scores from live sources. This re-fetches the scored index,
   // which grounds every factor server-side on request — it does NOT call the
@@ -100,10 +104,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <StatTile label="Monitored TVL" value={formatCompactCurrency(totalTvl)} subtitle={`${rows.length} protocols`} accent="cyan" />
         <StatTile
-          label="Registered Agents"
-          value={agentCount ?? '—'}
-          subtitle={agentCount == null ? 'store unavailable' : 'protected'}
-          accent="emerald"
+          label="Protocols Flagged"
+          value={scored.length > 0 ? flaggedCount : '—'}
+          subtitle={scored.length > 0 ? 'avoid or block verdict' : isLoading ? 'grounding…' : 'no live data'}
+          accent={flaggedCount > 0 ? 'rose' : 'emerald'}
         />
         <StatTile
           label="Risk Queries"
