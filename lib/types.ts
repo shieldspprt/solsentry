@@ -127,12 +127,25 @@ export interface IncidentHistorySummary {
   most_recent_technique: string | null;
 }
 
+// Protocol-wide lending liquidity, scored for the liquidation_rekt factor.
+export interface MarketUtilizationSummary {
+  utilization: number; // 0..1, borrowed / supplied
+  total_supply_usd: number;
+  total_borrow_usd: number;
+  reserves_counted: number;
+  score: number; // 0..10, higher = safer (more exit liquidity)
+  warning: string | null;
+}
+
 export interface InstitutionalRiskMetrics {
   /** Deprecated: never had a source. Superseded by token_market_integrity. */
   bot_density_pct: number | null;
   token_market_integrity?: TokenMarketIntegrity;
   oracle_health?: ProtocolOracleSummary;
   incident_history?: IncidentHistorySummary;
+  market_utilization?: MarketUtilizationSummary;
+  /** True for protocols with no borrow book (DEX, LST) — factor is N/A. */
+  liquidation_not_applicable?: boolean;
   /** % of open value near its liquidation threshold. No public source yet. */
   near_liquidation_ratio_pct: number | null;
   /** Top-10 holder share of token supply (Helius). */
@@ -209,6 +222,11 @@ export interface FactorScore {
   key: FactorKey;
   label: string;
   measured: boolean;
+  // True when the factor does not apply to this protocol at all (e.g. borrow
+  // liquidation risk for a DEX). Distinct from unmeasured: a not-applicable
+  // factor is excluded from the coverage denominator rather than counted as a
+  // gap we failed to fill.
+  not_applicable?: boolean;
   score: number | null; // 0..10 (higher = safer); null when unmeasured
   nominal_weight: number; // 0..1 — the factor's weight in a fully-grounded score
   weight: number; // 0..1 — effective weight after renormalisation

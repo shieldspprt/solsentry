@@ -61,6 +61,10 @@ export async function enforcePayment(
   const merchantWallet = getMerchantWallet();
   if (!merchantWallet) return ALLOWED; // billing not configured — stay free
 
+  // A zero-priced tool is free by definition; do not demand a payment header
+  // for it just because billing is switched on globally.
+  if (getMinimumPayment(toolName) <= 0) return ALLOWED;
+
   const connection = getConnection();
   if (!connection) {
     // We cannot verify a payment without an RPC. Failing open is the right call:

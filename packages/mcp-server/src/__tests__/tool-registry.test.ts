@@ -2,12 +2,21 @@ import { describe, it, expect } from 'vitest';
 import { TOOL_DEFINITIONS, dispatchToolCall } from '../tool-registry';
 
 describe('MCP Tool Registry & Canonical Dispatcher', () => {
-  it('should expose all 8 canonical tools with solsentry_ prefix', () => {
-    expect(TOOL_DEFINITIONS).toHaveLength(8);
+  it('should expose all canonical tools with solsentry_ prefix, guard first', () => {
+    expect(TOOL_DEFINITIONS).toHaveLength(9);
     for (const tool of TOOL_DEFINITIONS) {
       expect(tool.name).toMatch(/^solsentry_/);
     }
+    // The pre-signing guard is the lead tool an agent should reach for first.
+    expect(TOOL_DEFINITIONS[0].name).toBe('solsentry_guard_transaction');
   });
+
+  it('should dispatch the guard and force DO_NOT_SIGN on an undecodable transaction', async () => {
+    const res = await dispatchToolCall('solsentry_guard_transaction', { transaction: 'not_a_real_tx' });
+    expect(res.isError).toBe(false);
+    expect(res.verdict).toBe('DO_NOT_SIGN');
+    expect(res.blockingReasons.length).toBeGreaterThan(0);
+  }, 30000);
 
   it('should dispatch canonical solsentry_check_protocol_risk tool call successfully', async () => {
     const res = await dispatchToolCall('solsentry_check_protocol_risk', { protocolSlug: 'jupiter' });

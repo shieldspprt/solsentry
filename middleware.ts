@@ -23,6 +23,7 @@ const PUBLIC_API_PATHS = new Set([
   '/api/v1/risk-check',
   '/api/v1/positions/read',
   '/api/v1/simulate',
+  '/api/v1/guard',
   '/api/v1/stream',
   '/api/v1/mcp',
 ]);

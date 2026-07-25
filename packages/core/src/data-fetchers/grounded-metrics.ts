@@ -8,6 +8,7 @@ import { fetchProtocolFees, fetchProtocolTvl } from './defillama';
 import { fetchDeveloperActivity } from './github';
 import { fetchCategoryTvl } from './defillama-category';
 import { fetchTokenMarketIntegrity } from './jupiter';
+import { fetchMarketUtilization, scoreUtilization, isLendingProtocol } from './kamino-market';
 
 export interface GroundedMetricsResult {
   metrics: InstitutionalRiskMetrics;
@@ -35,7 +36,7 @@ export async function buildGroundedMetrics(
   // Each protocol scores against the feeds its own solvency depends on.
   const feeds = PROTOCOL_ORACLE_FEEDS[slug] || ['SOL_USD'];
 
-  const [oracle, holders, fees, tvl, devActivity, categoryTvl, integrity, incidentHistory] = await Promise.all([
+  const [oracle, holders, fees, tvl, devActivity, categoryTvl, integrity, incidentHistory, utilization] = await Promise.all([
     fetchProtocolOracleHealth(feeds, STABLECOIN_FEEDS),
     fetchTokenHolderConcentration(slug),
     fetchProtocolFees(slug),
@@ -44,6 +45,7 @@ export async function buildGroundedMetrics(
     protocol.category ? fetchCategoryTvl(protocol.category) : Promise.resolve(null),
     fetchTokenMarketIntegrity(slug),
     fetchProtocolIncidents(slug),
+    fetchMarketUtilization(slug),
   ]);
 
   // --- Oracle health (Pyth, worst feed the protocol depends on) ---
@@ -78,6 +80,34 @@ export async function buildGroundedMetrics(
     sourcesLive.push('defillama:hacks');
   } else {
     sourcesUnavailable.push('defillama:hacks');
+  }
+
+  // --- Liquidity & liquidation-cascade risk (lending markets only) ---
+  const category = (protocol.category || '').toLowerCase();
+  // Protocols with no borrow book have no protocol-wide liquidation cascade.
+  const hasBorrowBook = isLendingProtocol(slug) || category === 'lending' || category === 'perps';
+  if (utilization) {
+    const scored = scoreUtilization(utilization.utilization);
+    base.market_utilization = {
+      utilization: utilization.utilization,
+      total_supply_usd: utilization.total_supply_usd,
+      total_borrow_usd: utilization.total_borrow_usd,
+      reserves_counted: utilization.reserves_counted,
+      score: scored.score,
+      warning: scored.warning,
+    };
+    provenance.liquidation_rekt = { source: 'onchain', as_of: utilization.as_of, confidence: 0.85 };
+    sourcesLive.push('kamino:utilization');
+  } else if (!hasBorrowBook) {
+    base.liquidation_not_applicable = true;
+    // Not counted as unavailable — it genuinely does not apply.
+  } else if (isLendingProtocol(slug)) {
+    sourcesUnavailable.push('kamino:utilization');
+  } else {
+    // A perps protocol (Drift) has liquidation-cascade risk, but it is driven by
+    // open interest and the insurance fund, not lending utilization — a distinct
+    // source we do not yet read. Honestly unmeasured, not N/A.
+    sourcesUnavailable.push('perps:liquidation');
   }
 
   // --- Whale concentration ---

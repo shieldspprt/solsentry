@@ -10,14 +10,14 @@ export default function LandingPage() {
     name: 'SolSentry',
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Solana Network',
-    description: 'Quantitative risk engine, CLI tool, x402 pay-as-you-go micropayments, agent autonomy, and multi-framework plugins (ElizaOS, Solana Agent Kit, LangChain, MCP) for Solana AI agents.',
+    description: 'Pre-signing transaction simulator with wallet-drainer detection, plus a provenance-tagged protocol risk engine, MCP server and TypeScript SDK for Solana AI agents.',
     offers: {
       '@type': 'Offer',
       price: '0',
       priceCurrency: 'USD',
     },
     url: siteUrl,
-    softwareRequirements: 'Model Context Protocol (MCP), Solana Agent Kit, ElizaOS, or REST API',
+    softwareRequirements: 'Model Context Protocol (MCP), TypeScript SDK, or REST API',
   };
 
   return (
@@ -48,7 +48,7 @@ export default function LandingPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-16 text-center space-y-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-          v3.0.0 — CLI, x402 Micropayments, Agent Autonomy &amp; Backtesting
+          v3.1 — Drainer detection, exploit gating &amp; per-protocol oracles
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-tight">
@@ -94,9 +94,10 @@ export default function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 text-left">
-          <Card padding="md" title="🤖 Multi-Framework AI Agent Plugins">
+          <Card padding="md" title="🔌 MCP + TypeScript SDK">
             <p className="text-sm text-slate-300 leading-relaxed">
-              First-class integration packages for <strong>ElizaOS</strong> (<code>@solsentry/eliza-plugin</code>), <strong>Solana Agent Kit</strong> (<code>@solsentry/agent-kit</code>), <strong>LangChain / CrewAI</strong> (<code>@solsentry/langchain</code>), and <strong>MCP Clients</strong>.
+              Nine <code>solsentry_*</code> tools over MCP for Claude, Cursor and any MCP client, plus <code>@solsentry/sdk</code> for
+              custom bots. Two integration paths, both maintained — instead of five thin wrappers around the same HTTP calls.
             </p>
           </Card>
 
@@ -109,13 +110,14 @@ export default function LandingPage() {
           <Card padding="md" title="⚡ Guardrails & De-Leverage Sizing">
             <p className="text-sm text-slate-300 leading-relaxed">
               Policy guardrails, circuit-breaker halts on daily drawdown, and the exact collateral needed to restore a safe health
-              factor. SolSentry sizes the action; your agent or wallet executes it. It never signs on your behalf.
+              factor. SolSentry sizes the action; your agent executes it. It never signs on your behalf.
             </p>
           </Card>
 
-          <Card padding="md" title="📈 Historical Crash Backtesting Engine">
+          <Card padding="md" title="🚨 Realized Exploit History">
             <p className="text-sm text-slate-300 leading-relaxed">
-              Simulate policy enforcement rules against historical Solana market crashes (Nov 2022 FTX, March 2023 USDC de-peg, Feb 2022 Wormhole hack).
+              Every protocol is checked against DeFiLlama's hacks dataset. A loss over $10M inside 180 days forces a
+              <strong> block</strong> verdict regardless of how healthy the other factors look.
             </p>
           </Card>
 

@@ -5,11 +5,36 @@ import { handleGetPositionHealth } from './tools/get-position-health';
 import { handleGetBusinessRatios } from './tools/get-business-ratios';
 import { handlePreflight } from './tools/preflight';
 import { handleStressTest } from './tools/stress-test';
+import { handleGuardTransaction } from './tools/guard-transaction';
 import { SUPPORTED_PROTOCOLS, SUPPORTED_ACTIONS } from '../../core/src/constants';
 
 export const TOOL_PREFIX = 'solsentry_';
 
 export const TOOL_DEFINITIONS = [
+  {
+    name: 'solsentry_guard_transaction',
+    description:
+      'THE ONE CALL TO MAKE BEFORE SIGNING. Give it a serialized transaction and it simulates the actual bytes against mainnet (no broadcast), scans for wallet-drainer patterns, and — if you also pass protocolSlug/action/amountUsd — folds in the protocol risk gate and policy guardrails. Returns a single verdict: SIGN or DO_NOT_SIGN, with blockingReasons. A drainer pattern, a failed simulation, a blocked protocol, or a policy violation each force DO_NOT_SIGN. This is the only tool that inspects the transaction you are about to sign; the rest describe a protocol in the abstract. Example: {"transaction": "<base58>", "protocolSlug": "kamino", "action": "borrow", "amountUsd": 500}.',
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transaction: { type: 'string', description: 'Serialized Solana transaction, base58 or base64' },
+        encoding: { type: 'string', enum: ['base58', 'base64'] },
+        protocolSlug: { type: 'string', description: 'Optional: fold in protocol risk + policy for this protocol' },
+        action: { type: 'string', description: 'Optional: swap | lend | borrow | lp | stake | perp_long | perp_short' },
+        amountUsd: { type: 'number', description: 'Optional: USD notional, for policy caps' },
+        currentDailyVolumeUsd: { type: 'number' },
+        currentDrawdownPct: { type: 'number' },
+        openPositionsCount: { type: 'number' },
+      },
+      required: ['transaction'],
+    },
+  },
+
   {
     name: 'solsentry_simulate_transaction',
     description:
@@ -212,6 +237,7 @@ export const TOOL_DEFINITIONS = [
 import { simulateSolanaTransaction } from '../../core/src/simulation/tx-simulator';
 
 export const TOOL_HANDLERS: Record<string, (args: any) => Promise<any>> = {
+  'guard_transaction': handleGuardTransaction,
   'check_protocol_risk': handleCheckProtocolRisk,
   'get_protocol_list': handleGetProtocolList,
   'evaluate_policy': handleEvaluatePolicy,

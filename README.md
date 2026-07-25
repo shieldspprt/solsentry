@@ -26,12 +26,12 @@ if (check.drainerScan.isDrainerPattern) return;   // do not sign
 
 Around that sits an open-source, provenance-tagged protocol risk engine and policy guardrail middleware for **Solana AI trading agents and autonomous bots**.
 
-SolSentry acts as a trusted **pre-flight security gateway** before any AI agent broadcasts a transaction on Solana mainnet. It calculates multi-factor risk scores, detects malicious wallet drainer instruction patterns, simulates pre-execution token balance deltas, and enforces strict financial policy guardrails (single transaction caps, daily volume limits, drawdown thresholds, and minimum protocol safety floors).
+It acts as a pre-flight gateway before an agent broadcasts anything on mainnet: multi-factor protocol risk scores, drainer detection, pre-execution balance deltas, and policy guardrails (single-transaction caps, daily volume limits, drawdown thresholds, minimum safety floors).
 
 ```
  ┌─────────────────────────┐      ┌─────────────────────────┐      ┌─────────────────────────┐
- │   Solana AI Agents      │      │    Agent Frameworks     │      │   Claude / Cursor / IDE │
- │ (Bots / CLI / Autonomy) │      │(Eliza / Agent Kit / Lang)│      │    (MCP Client StdIO)   │
+ │   Solana AI Agents      │      │   @solsentry/sdk + CLI  │      │   Claude / Cursor / IDE │
+ │  (Bots / Autonomous)    │      │   (TypeScript client)   │      │    (MCP Client StdIO)   │
  └────────────┬────────────┘      └────────────┬────────────┘      └────────────┬────────────┘
               │                                │                                │
               └────────────────────────────────┼────────────────────────────────┘
@@ -53,20 +53,16 @@ SolSentry acts as a trusted **pre-flight security gateway** before any AI agent 
 
 ## ✨ Key Capabilities
 
-- 🚨 **Wallet Drainer Detection (the lead capability)**: Deserializes a raw base58/base64 transaction, simulates it against mainnet RPC with `sigVerify: false`, and scans the instruction sequence for drainer patterns — `Approve`/`SetAuthority` followed by an immediate `Transfer`/`CloseAccount`, or a >90% balance sweep. Read-only, needs no key material, broadcasts nothing.
+- 🛡️ **`guard_transaction` — the one call before signing**: Give it a serialized transaction and it simulates the bytes against mainnet, scans for drainer patterns, and (with optional `protocolSlug`/`action`/`amountUsd`) folds in the exploit/risk gate and policy guardrails into a single **SIGN / DO_NOT_SIGN** verdict. Over MCP and `POST /api/v1/guard`.
+- 🚨 **Wallet Drainer Detection**: Deserializes a raw base58/base64 transaction, simulates it against mainnet RPC with `sigVerify: false`, and scans the instruction sequence for drainer patterns — `Approve`/`SetAuthority` followed by an immediate `Transfer`/`CloseAccount`, or a >90% balance sweep. Read-only, needs no key material, broadcasts nothing.
 - 🛡️ **Provenance-Tagged Scoring Model (v3)**: Eight risk factors, each tagged with its data source, timestamp and confidence. **A factor with no live source is reported as `unmeasured` — it scores nothing and its weight is redistributed across the factors that do have data.** The response carries a `factor_coverage` object so a caller can see exactly how much of the model is grounded, and the engine withholds a directional recommendation below 50% coverage. See [Factor coverage](#-factor-coverage-what-is-actually-measured).
 - ⚡ **Transaction Pre-Execution Simulator**: Replaces recent blockhashes, tracks Compute Units, and computes exact incoming vs. outgoing SOL/SPL token balance deltas.
-- 📉 **Stress Testing & Historical Backtesting Engine**: Simulates adverse price shocks (-10%, -20%, -35%) and historical market crash scenarios (Nov 2022 FTX, March 2023 USDC de-peg, Feb 2022 Wormhole hack) to evaluate policy guardrail protection.
+- 📉 **Stress Testing**: Simulates adverse price shocks (-10%, -20%, -35%) against REAL on-chain positions, reporting which liquidate, capital at risk, and the collateral needed to restore a safe health factor.
 - 💳 **x402 Pay-As-You-Go USDC Micropayments (`@solsentry/payment`)**: Solana Pay USDC micro-payments via the `X-402-Payment` header, enforced on `/api/v1/simulate`. **Off unless `X402_RECIPIENT_WALLET` is set** — every endpoint is free until you configure a wallet.
-- 🤖 **Autonomy Policy Engine (`@solsentry/agent-autonomy`)**: De-leverage sizing, rebalancing plans, and circuit-breaker halts. It computes *what* to do and by how much; it does not build or sign transactions — execution stays with your agent.
 - 💻 **Official Developer CLI (`@solsentry/cli`)**: Standalone terminal binary for instant protocol risk checks, transaction simulation, and policy evaluation.
-- 📦 **Multi-Framework Integrations**:
-  - `@solsentry/sdk`: Lightweight TypeScript client for custom Solana bots.
-  - `@solsentry/cli`: Global CLI tool (`npm install -g @solsentry/cli`).
-  - `@solsentry/eliza-plugin`: Official plugin for ElizaOS (ai16z) agents.
-  - `@solsentry/agent-kit`: Official plugin for Solana Agent Kit (`ai16z`).
-  - `@solsentry/langchain`: Structured Tools for LangChain & CrewAI.
-  - Model Context Protocol (MCP): 8 canonical `solsentry_*` tools over stdio & HTTP.
+- 📦 **Two integration paths, both maintained**:
+  - Model Context Protocol (MCP): 9 canonical `solsentry_*` tools over stdio & HTTP — Claude, Cursor, any MCP client.
+  - `@solsentry/sdk`: TypeScript client for custom Solana bots, and `@solsentry/cli` for the terminal.
 
 ---
 
@@ -161,54 +157,9 @@ if (verdict.decision === 'PROCEED') {
 
 ---
 
-### 3. Solana Agent Kit Integration (`@solsentry/agent-kit`)
+### 3. Model Context Protocol (MCP) Server
 
-Integrate SolSentry risk actions into `solana-agent-kit` (ai16z):
-
-```typescript
-import { SolSentryAgentKitPlugin } from '@solsentry/agent-kit';
-
-const sentryPlugin = new SolSentryAgentKitPlugin({
-  apiKey: process.env.SOLSENTRY_API_KEY,
-});
-
-const risk = await sentryPlugin.checkProtocolRiskTool('kamino');
-console.log('Safety Score:', risk.score);
-```
-
----
-
-### 4. LangChain & CrewAI Tools (`@solsentry/langchain`)
-
-Expose SolSentry tools to LangChain or CrewAI agents:
-
-```typescript
-import { SolSentryRiskCheckTool, SolSentrySimulateTool } from '@solsentry/langchain';
-
-const riskTool = new SolSentryRiskCheckTool();
-const simTool = new SolSentrySimulateTool();
-```
-
----
-
-### 5. ElizaOS Agent Integration (`@solsentry/eliza-plugin`)
-
-Integrate SolSentry risk actions into any ElizaOS AI Agent:
-
-```typescript
-import { solSentryPlugin } from '@solsentry/eliza-plugin';
-
-export const agentConfig = {
-  name: 'SolanaTradingAgent',
-  plugins: [solSentryPlugin],
-};
-```
-
----
-
-### 6. Model Context Protocol (MCP) Server
-
-SolSentry exposes 8 canonical MCP tools over stdio or HTTP (`/api/v1/mcp`). Add SolSentry to your `claude_desktop_config.json` or Cursor AI configuration:
+SolSentry exposes 9 canonical MCP tools over stdio or HTTP (`/api/v1/mcp`). Add SolSentry to your `claude_desktop_config.json` or Cursor AI configuration:
 
 ```json
 {
@@ -237,14 +188,10 @@ solsentry/
 │   ├── dashboard/              ← Analytics, Simulator, Policies, Agents, Alerts UI
 │   ├── docs/                   ← Interactive API & SDK Developer Playground
 ├── packages/
-│   ├── core/                   ← Quantitative Scorer, Stress Engine, Simulator & Backtester
+│   ├── core/                   ← Risk Scorer, Simulator, Drainer Detector, Wallet Reader, Data Fetchers
 │   ├── sdk/                    ← Official TypeScript Client SDK (@solsentry/sdk)
 │   ├── cli/                    ← Official Developer CLI Tool (@solsentry/cli)
 │   ├── payment/                ← x402 USDC Pay-As-You-Go Micropayment Verifier (@solsentry/payment)
-│   ├── agent-autonomy/         ← Autonomous Execution Engine (@solsentry/agent-autonomy)
-│   ├── agent-kit/              ← Official Solana Agent Kit Plugin (@solsentry/agent-kit)
-│   ├── langchain/              ← LangChain & CrewAI Structured Tools (@solsentry/langchain)
-│   ├── eliza-plugin/           ← Official ElizaOS Agent Plugin (@solsentry/eliza-plugin)
 │   └── mcp-server/             ← Model Context Protocol (MCP) Server
 ├── lib/                        ← Shared Auth, Security, Cache & Logging Utilities
 ├── docs/                       ← Architecture Documentation, Cookbooks & Security Audits
@@ -258,17 +205,13 @@ solsentry/
 SolSentry features an extensive automated test suite including property-based fuzz testing (`fast-check`):
 
 ```bash
-# Run Vitest Unit & Fuzz Test Suite (26 Tests Across 7 Test Files)
+# Run the Vitest unit & property-based fuzz suite
 npm test -- --run
 
-# Compile All Workspace Packages (SDK, CLI, Payment, Autonomy, Agent Kit, LangChain, Eliza)
+# Compile workspace packages
 npx tsc -p packages/sdk/tsconfig.json
 npx tsc -p packages/cli/tsconfig.json
 npx tsc -p packages/payment/tsconfig.json
-npx tsc -p packages/agent-autonomy/tsconfig.json
-npx tsc -p packages/agent-kit/tsconfig.json
-npx tsc -p packages/langchain/tsconfig.json
-npx tsc -p packages/eliza-plugin/tsconfig.json
 
 # Run Next.js Production Build
 npm run build

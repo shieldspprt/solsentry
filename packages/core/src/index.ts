@@ -5,7 +5,6 @@ export * from './position-monitor';
 export * from './policy-engine';
 export * from './stress-engine';
 export * from './wallet-reader';
-export * from './backtest-engine';
 export * from './simulation/tx-simulator';
 export * from './data-fetchers/helius';
 export * from './data-fetchers/pyth';

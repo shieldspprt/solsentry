@@ -130,25 +130,59 @@ export async function verifyPayment(
  * Get minimum payment required for an MCP tool call
  * Pricing: Base fee per call type
  */
-export function getMinimumPayment(toolName: string): number {
-  const pricing: Record<string, number> = {
-    // Basic queries - lower cost
-    'get_protocol_list': 0.10,
-    'check_protocol_risk': 0.25,
-    'get_business_ratios': 0.15,
-    
-    // Analysis tools - medium cost
-    'evaluate_policy': 0.50,
-    'get_position_health': 0.35,
-    'preflight': 0.75,
-    
-    // Heavy computation - higher cost
-    'stress_test': 1.00,
-    'simulate_transaction': 1.50,
-  };
+// Price list in USDC, per call.
+//
+// Priced for PER-TRANSACTION economics, which is the only way this product is
+// used. An agent placing 100 trades a day calls the simulator 100 times. At the
+// previous $1.50 that is $150/day — so the rational move was to skip the safety
+// check, which defeats the entire purpose. A guardrail must never be the reason
+// someone trades unguarded.
+//
+// The tiers reflect cost-to-serve and how often a call recurs:
+//   - Pure local computation, no upstream calls        → free
+//   - Cacheable reads (protocol-level, shared by all)  → fractions of a cent
+//   - Per-wallet / per-transaction work (uncacheable)  → 1-5 cents
+//
+// At these rates a busy agent (100 preflights + 100 simulations daily) pays
+// ~$5/day, which is defensible against the loss a single drained wallet causes.
+//
+// Override any entry with X402_PRICE_<TOOL_NAME> in USDC, e.g.
+//   X402_PRICE_SIMULATE_TRANSACTION=0.05
+const DEFAULT_PRICING: Record<string, number> = {
+  // Free: computed locally from data the caller already has. Charging for
+  // arithmetic invites people to reimplement it, and it is trivial to copy.
+  'evaluate_policy': 0,
+  'get_protocol_list': 0,
 
-  return pricing[toolName] || 0.25; // Default to 0.25 USDC
+  // Cacheable protocol-level reads. One upstream fetch serves every caller, so
+  // the marginal cost is close to zero and the price should reflect that.
+  'check_protocol_risk': 0.005,
+  'get_business_ratios': 0.005,
+
+  // Wallet-specific: uncacheable, needs live RPC reads per caller.
+  'get_position_health': 0.01,
+  'stress_test': 0.02,
+
+  // The differentiated calls. simulate_transaction runs a real mainnet
+  // simulation per transaction and cannot be cached or precomputed.
+  'simulate_transaction': 0.02,
+  // preflight bundles simulate + protocol risk + policy into one round trip.
+  // Priced under the sum of its parts so the good habit is the cheap one.
+  'preflight': 0.05,
+};
+
+export function getMinimumPayment(toolName: string): number {
+  const envKey = `X402_PRICE_${toolName.toUpperCase()}`;
+  const override = process.env[envKey];
+  if (override !== undefined) {
+    const parsed = Number(override);
+    if (Number.isFinite(parsed) && parsed >= 0) return parsed;
+  }
+  const price = DEFAULT_PRICING[toolName];
+  return price !== undefined ? price : 0.01;
 }
+
+export { DEFAULT_PRICING };
 
 /**
  * Generate Solana Pay link for easy payment

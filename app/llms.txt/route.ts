@@ -34,7 +34,10 @@ SolSentry operates a standard MCP server for Claude, ElizaOS, GPT, Solana Agent 
 
 ### MCP Tools Available:
 
-0. solsentry_simulate_transaction(transaction, [encoding]) — CALL THIS BEFORE SIGNING ANYTHING
+0. solsentry_guard_transaction(transaction, [protocolSlug, action, amountUsd]) — THE ONE CALL BEFORE SIGNING
+Give it a serialized transaction and it simulates the actual bytes against mainnet (no broadcast), scans for wallet-drainer patterns, and — if you also pass protocolSlug/action/amountUsd — folds in the protocol risk gate and policy guardrails. Returns a single verdict, SIGN or DO_NOT_SIGN, with blockingReasons. A drainer pattern, a failed simulation, a blocked protocol, or a policy violation each force DO_NOT_SIGN. This is the only tool that inspects the transaction you are about to sign. Also over REST: POST /api/v1/guard.
+
+0b. solsentry_simulate_transaction(transaction, [encoding]) — the raw simulator underneath the guard
 The single highest-value call here. Executes a serialized transaction against a mainnet RPC WITHOUT broadcasting it, and returns the exact tokens leaving and entering the wallet, compute units, raw logs, and a drainer verdict. The drainer scan flags Approve or SetAuthority followed by an immediate Transfer/CloseAccount, and sweeps of >90% of an account balance. A transaction can look routine and still drain a wallet — this is the only tool that inspects the bytes you are about to sign. If drainerScan.isDrainerPattern is true, DO NOT SIGN. Read-only, needs no key material, broadcasts nothing.
 
 1. solsentry_preflight(action, protocolSlug, amountUsd, [portfolio state])

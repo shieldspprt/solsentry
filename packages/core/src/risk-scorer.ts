@@ -162,6 +162,28 @@ export function computeProtocolRisk(
     });
   };
 
+  // A factor that genuinely does not apply to this protocol (e.g. borrow-driven
+  // liquidation risk for a DEX). Excluded from the coverage denominator so it
+  // does not read as a gap we failed to measure.
+  const addNotApplicable = (key: FactorKey, label: string, unit: string, rationale: string) => {
+    factors.push({
+      key,
+      label,
+      measured: false,
+      not_applicable: true,
+      score: null,
+      nominal_weight: FACTOR_WEIGHTS[key],
+      weight: 0,
+      contribution: 0,
+      confidence: 0,
+      source: 'unmeasured',
+      as_of: null,
+      value: null,
+      unit,
+      rationale,
+    });
+  };
+
   // --- Realized exploit history ---
   // The only factor describing what has actually happened to the protocol
   // rather than how it looks on paper.
@@ -211,30 +233,37 @@ export function computeProtocolRisk(
     addUnmeasured('audit_governance', 'Audit & Governance', 'hours', 'No audit record on file for this protocol.');
   }
 
-  // --- Liquidation / Rekt cascade ---
-  const nlr = metrics.near_liquidation_ratio_pct;
-  if (nlr != null) {
-    let liquidationScore = 10.0;
-    if (nlr > 10.0) {
-      liquidationScore = 3.0;
-      warnings.push(`High liquidation cascade vulnerability (${nlr}% near liquidation)`);
-    } else if (nlr > 5.0) liquidationScore = 6.5;
-    else if (nlr > 2.5) liquidationScore = 8.5;
+  // --- Liquidity & liquidation-cascade risk ---
+  // For a lending market this is UTILISATION — how much supplied liquidity is
+  // borrowed. Near-full utilisation jams withdrawals and liquidations, which is
+  // the cascade risk. The factor does not apply to protocols that carry no
+  // borrow book (DEX, LST): for those it is not-applicable rather than a gap.
+  const util = metrics.market_utilization;
+  if (util != null) {
+    const utilPct = Math.round(util.utilization * 1000) / 10;
+    if (util.warning) warnings.push(util.warning);
     addMeasured(
       'liquidation_rekt',
-      'Liquidation & Rekt Risk',
-      liquidationScore,
-      nlr,
-      '%',
-      `${nlr}% of open value sits near its liquidation threshold.`,
-      'derived'
+      'Liquidity & Liquidation Risk',
+      util.score,
+      utilPct,
+      '% utilised',
+      `${utilPct}% of supplied liquidity is borrowed across ${util.reserves_counted} reserves ($${(util.total_borrow_usd / 1e6).toFixed(0)}M borrowed / $${(util.total_supply_usd / 1e6).toFixed(0)}M supplied). Near-full utilisation blocks withdrawals and liquidations.`,
+      'onchain'
+    );
+  } else if (metrics.liquidation_not_applicable) {
+    addNotApplicable(
+      'liquidation_rekt',
+      'Liquidity & Liquidation Risk',
+      '% utilised',
+      'This protocol carries no borrow book, so it has no protocol-wide liquidation cascade. Excluded from the score rather than counted as unmeasured.'
     );
   } else {
     addUnmeasured(
       'liquidation_rekt',
-      'Liquidation & Rekt Risk',
-      '%',
-      'Protocol-wide near-liquidation ratio requires indexing every obligation account; no public feed is wired up yet. Use the wallet scan for real position-level liquidation risk.'
+      'Liquidity & Liquidation Risk',
+      '% utilised',
+      'Lending-market utilisation could not be read from the protocol API. Use the wallet scan for real position-level liquidation risk.'
     );
   }
 
@@ -397,9 +426,13 @@ export function computeProtocolRisk(
   }
 
   // --- Renormalise weights over measured factors only ---
+  // Not-applicable factors are removed from BOTH sides: they neither score nor
+  // count toward the coverage denominator. A lending-only factor being absent on
+  // a DEX is not a measurement gap, so it should not drag that DEX's coverage.
   const measured = factors.filter((f) => f.measured);
+  const applicable = factors.filter((f) => !f.not_applicable);
   const measuredWeight = measured.reduce((s, f) => s + f.nominal_weight, 0);
-  const totalNominalWeight = factors.reduce((s, f) => s + f.nominal_weight, 0);
+  const applicableWeight = applicable.reduce((s, f) => s + f.nominal_weight, 0);
 
   for (const f of factors) {
     f.weight = f.measured && measuredWeight > 0 ? f.nominal_weight / measuredWeight : 0;
@@ -408,9 +441,9 @@ export function computeProtocolRisk(
 
   const coverage: FactorCoverage = {
     measured_factors: measured.length,
-    total_factors: factors.length,
-    weight_covered_pct: totalNominalWeight > 0 ? Math.round((measuredWeight / totalNominalWeight) * 1000) / 10 : 0,
-    unmeasured: factors.filter((f) => !f.measured).map((f) => f.key),
+    total_factors: applicable.length,
+    weight_covered_pct: applicableWeight > 0 ? Math.round((measuredWeight / applicableWeight) * 1000) / 10 : 0,
+    unmeasured: factors.filter((f) => !f.measured && !f.not_applicable).map((f) => f.key),
   };
 
   // With nothing measured there is no score to give. Report the floor with a
@@ -422,7 +455,7 @@ export function computeProtocolRisk(
   // Coverage is part of confidence: a score built on two of seven factors is
   // not as trustworthy as the same score built on all seven.
   const dataConfidence = measured.length > 0 ? measured.reduce((sum, f) => sum + f.confidence * f.weight, 0) : 0;
-  const coverageFactor = totalNominalWeight > 0 ? measuredWeight / totalNominalWeight : 0;
+  const coverageFactor = applicableWeight > 0 ? measuredWeight / applicableWeight : 0;
   const overallConfidence = Math.round(dataConfidence * coverageFactor * 100) / 100;
 
   const variance = measured.reduce((s, f) => s + f.weight * Math.pow((f.score as number) - compositeRaw, 2), 0);

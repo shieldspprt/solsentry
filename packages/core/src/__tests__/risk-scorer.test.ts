@@ -240,6 +240,49 @@ describe('Institutional Risk Scorer', () => {
     expect(result.agent_decision.action).toBe('CHANGE_POSITION');
   });
 
+  it('grounds liquidation risk in lending-market utilization', () => {
+    const result = computeProtocolRisk(
+      {
+        ...KAMINO,
+        institutional_metrics: {
+          market_utilization: {
+            utilization: 0.92,
+            total_supply_usd: 800_000_000,
+            total_borrow_usd: 736_000_000,
+            reserves_counted: 77,
+            score: 4,
+            warning: 'Market utilization 92% — thin exit liquidity, cascade risk elevated',
+          },
+        } as any,
+      },
+      { provenance: { liquidation_rekt: { source: 'onchain', as_of: '2026-01-01T00:00:00Z', confidence: 0.85 } } }
+    );
+
+    const liq = result.factors!.find((f) => f.key === 'liquidation_rekt')!;
+    expect(liq.measured).toBe(true);
+    expect(liq.score).toBe(4);
+    expect(result.critical_warnings.some((w) => w.includes('92%'))).toBe(true);
+  });
+
+  it('excludes a not-applicable factor from coverage instead of counting it as a gap', () => {
+    // A DEX has no borrow book, so liquidation risk is N/A — coverage should be
+    // computed over the remaining factors, not penalised for its absence.
+    const dex = computeProtocolRisk({
+      slug: 'orca',
+      name: 'Orca',
+      category: 'dex',
+      audit_status: 'audited',
+      auditors: ['Kudelski'],
+      institutional_metrics: { liquidation_not_applicable: true } as any,
+    });
+
+    const liq = dex.factors!.find((f) => f.key === 'liquidation_rekt')!;
+    expect(liq.not_applicable).toBe(true);
+    // total_factors is the applicable count, which excludes the N/A factor.
+    expect(dex.factor_coverage.total_factors).toBe(7);
+    expect(dex.factor_coverage.unmeasured).not.toContain('liquidation_rekt');
+  });
+
   it('scores developer activity for abandonment, not commit volume', () => {
     const mk = (commits: number, devs: number) =>
       computeProtocolRisk({
