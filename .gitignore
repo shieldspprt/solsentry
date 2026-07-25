@@ -1,6 +1,18 @@
 # Dependencies
 node_modules/
 
+# Local AI agent / editor tooling (not part of the product)
+.agents/
+.claude/
+skills-lock.json
+
+# Scratch and one-off scripts
+scratch/
+
+# Internal working notes (not part of the shipped system)
+IMPLEMENTATION_SUMMARY.md
+AGENTS.md
+
 # Build outputs
 .next/
 out/
@@ -22,12 +34,13 @@ packages/*/src/*.d.ts
 *.env.*
 !.env.example
 
-# Editors
+# Editors and OS
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
+**/.DS_Store
 
 # Logs
 *.log
