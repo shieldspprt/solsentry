@@ -26,6 +26,9 @@ const PUBLIC_API_PATHS = new Set([
   '/api/v1/guard',
   '/api/v1/stream',
   '/api/v1/mcp',
+  // GET lists registered agents for the dashboard; POST (create) still needs a
+  // key by the method-aware rule below.
+  '/api/v1/agents',
 ]);
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -101,9 +104,13 @@ export async function middleware(req: NextRequest) {
     const apiKeyHeader = req.headers.get('x-solsentry-api-key');
     const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : apiKeyHeader;
 
-    // Public read-only endpoints: rate-limited above, no key required. A key
-    // may still be supplied to attribute the call to a user.
-    if (PUBLIC_API_PATHS.has(pathname) && !token) {
+    // Public endpoints, method-aware: a READ (GET/HEAD) needs no key, but a
+    // mutation (POST/PUT/PATCH/DELETE) to the same path still does. This is the
+    // correct boundary — the dashboard can read these on load, but writing to
+    // them requires authentication. A key may still be supplied on reads to
+    // attribute the call to a user.
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
+    if (PUBLIC_API_PATHS.has(pathname) && isRead && !token) {
       return NextResponse.next();
     }
 

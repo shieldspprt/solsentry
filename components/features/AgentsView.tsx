@@ -18,6 +18,7 @@ export const AgentsView: React.FC = () => {
   const [agentType, setAgentType] = useState('custom');
   const [walletAddress, setWalletAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Autonomous guardrails state
   const [autonomyEnabled, setAutonomyEnabled] = useState(true);
@@ -44,18 +45,31 @@ export const AgentsView: React.FC = () => {
     await mutate([newAgent, ...agents], false);
 
     try {
-      await fetch('/api/v1/agents', {
+      const res = await fetch('/api/v1/agents', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description: 'Registered AI Trading Agent' }),
       });
+      if (!res.ok) {
+        // Registering an agent is a write, so it needs an API key. The webapp
+        // has no key UX yet, so surface that honestly instead of letting the
+        // optimistic row silently disappear on the next fetch.
+        const body = await res.json().catch(() => ({}));
+        setCreateError(
+          res.status === 401 || res.status === 403
+            ? 'Registering an agent requires an API key. Use POST /api/v1/agents with an Authorization header, or configure a key.'
+            : body?.message || `Could not register agent (HTTP ${res.status}).`
+        );
+      } else {
+        setIsModalOpen(false);
+        setName('');
+        setWalletAddress('');
+      }
       await mutate();
     } catch {
+      setCreateError('Network error while registering the agent.');
       await mutate();
     } finally {
-      setName('');
-      setWalletAddress('');
-      setIsModalOpen(false);
       setLoading(false);
     }
   };
@@ -67,7 +81,7 @@ export const AgentsView: React.FC = () => {
           <h2 className="text-3xl font-extrabold text-slate-100 tracking-tight">AI Agents</h2>
           <p className="text-sm text-slate-300 mt-1">Manage AI agents connected to SolSentry risk middleware & autonomous execution</p>
         </div>
-        <Button variant="primary" onClick={() => setIsModalOpen(true)}>
+        <Button variant="primary" onClick={() => { setCreateError(null); setIsModalOpen(true); }}>
           Register Agent
         </Button>
       </div>
@@ -106,13 +120,13 @@ export const AgentsView: React.FC = () => {
 
           <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-100 text-sm">Framework Plugins</span>
-              <Badge variant="info">4 Ready</Badge>
+              <span className="font-bold text-slate-100 text-sm">Integrations</span>
+              <Badge variant="info">MCP + SDK</Badge>
             </div>
-            <p className="text-xs text-slate-400">ElizaOS, Solana Agent Kit (ai16z), LangChain, & CrewAI SDK packages available.</p>
+            <p className="text-xs text-slate-400">Nine <code>solsentry_*</code> tools over MCP for Claude, Cursor and any MCP client, plus the TypeScript SDK & CLI.</p>
             <div className="pt-2">
-              <Button variant="secondary" size="sm" className="w-full" onClick={() => window.location.href = '/docs'}>
-                View Framework Integration SDKs
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => window.location.href = '/mcp'}>
+                View MCP &amp; SDK Docs
               </Button>
             </div>
           </div>
@@ -130,10 +144,10 @@ export const AgentsView: React.FC = () => {
         <Card padding="lg" className="text-center py-16">
           <p className="text-base font-bold text-slate-200">No registered AI agents yet</p>
           <p className="text-sm text-slate-400 mt-1 max-w-sm mx-auto">
-            Register your ElizaOS, Solana Agent Kit, or custom trading agent to start protecting transactions.
+            Register a Claude, Cursor, or custom trading agent to start protecting transactions.
           </p>
           <div className="mt-6">
-            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
+            <Button variant="outline" size="sm" onClick={() => { setCreateError(null); setIsModalOpen(true); }}>
               Register Agent
             </Button>
           </div>
@@ -172,6 +186,11 @@ export const AgentsView: React.FC = () => {
         }
       >
         <div className="space-y-5">
+          {createError && (
+            <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-800/70 text-xs text-amber-200">
+              {createError}
+            </div>
+          )}
           <Input
             label="Agent Name"
             placeholder="e.g. Solana Trading Bot Alpha"

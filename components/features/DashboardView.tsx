@@ -35,7 +35,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
 
   const { publicKey } = useWallet();
   // Scores are grounded server-side; the browser cannot reach Pyth, Helius,
@@ -57,18 +56,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   );
   const coveragePct = coverage.total > 0 ? Math.round((coverage.live / coverage.total) * 100) : 0;
 
-  const handleSync = async () => {
+  // Re-ground the scores from live sources. This re-fetches the scored index,
+  // which grounds every factor server-side on request — it does NOT call the
+  // write endpoint (/api/v1/sync), which persists to the database and is an
+  // authenticated cron/operator job, not a browser action.
+  const handleRefresh = async () => {
     setIsSyncing(true);
-    setSyncError(null);
     try {
-      const res = await fetch('/api/v1/sync', { method: 'POST' });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setSyncError(body?.message || `Sync failed (HTTP ${res.status}). Live scores below are still refreshed on every load.`);
-      }
       await mutateScored();
-    } catch (err) {
-      setSyncError((err as Error).message || 'Sync request failed.');
     } finally {
       setIsSyncing(false);
     }
@@ -86,16 +81,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-50 tracking-tight">Overview</h1>
           <p className="text-[14px] sm:text-[15px] text-slate-400 mt-1">Solana protocol risk scoring, grounded in live sources</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={handleSync} disabled={isSyncing} className="self-start sm:self-auto">
-          {isSyncing ? 'Syncing…' : '↻ Sync Live Data'}
+        <Button variant="secondary" size="sm" onClick={handleRefresh} disabled={isSyncing} className="self-start sm:self-auto">
+          {isSyncing ? 'Refreshing…' : '↻ Refresh Scores'}
         </Button>
       </div>
-
-      {syncError && (
-        <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-800/70 text-xs text-amber-200">
-          <strong className="font-bold">Sync did not complete:</strong> {syncError}
-        </div>
-      )}
 
       {/* A dead datastore used to be invisible: every read was wrapped in a
           bare catch that substituted constants. Now it says so. */}
