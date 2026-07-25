@@ -95,7 +95,7 @@ export default function LandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-8 text-left">
-          <Card padding="md" title="🛡️ One verdict before signing">
+          <Card padding="md" title="One verdict before signing">
             <p className="text-sm text-slate-300 leading-relaxed">
               <code>guard_transaction</code> simulates the actual bytes, scans for drainer patterns, and folds in protocol risk and
               policy guardrails. It is the only tool here that inspects the transaction you are about to sign, so nothing else can
@@ -103,7 +103,7 @@ export default function LandingPage() {
             </p>
           </Card>
 
-          <Card padding="md" title="🚨 Realized exploit history">
+          <Card padding="md" title="Realized exploit history">
             <p className="text-sm text-slate-300 leading-relaxed">
               Every protocol is checked against DeFiLlama&apos;s hacks dataset. A loss above $10M inside 180 days forces a{' '}
               <strong>block</strong> verdict no matter how healthy the other factors look. It is the one signal that describes what
@@ -111,7 +111,7 @@ export default function LandingPage() {
             </p>
           </Card>
 
-          <Card padding="md" title="📊 Provenance on every factor">
+          <Card padding="md" title="Provenance on every factor">
             <p className="text-sm text-slate-300 leading-relaxed">
               Eight risk factors, each tagged with its data source, timestamp, and confidence. Anything we cannot measure is
               reported as unmeasured and dropped from the score. Below 50% coverage the engine withholds a verdict instead of
@@ -119,21 +119,21 @@ export default function LandingPage() {
             </p>
           </Card>
 
-          <Card padding="md" title="🔌 MCP, SDK, CLI, REST">
+          <Card padding="md" title="MCP, SDK, CLI, REST">
             <p className="text-sm text-slate-300 leading-relaxed">
               Nine <code>solsentry_*</code> tools over MCP for Claude, Cursor, and any MCP client. A TypeScript SDK
               (<code>@solsentry/sdk</code>) and CLI (<code>@solsentry/cli</code>) for everything else. One engine, four surfaces.
             </p>
           </Card>
 
-          <Card padding="md" title="💳 Pay per call in USDC">
+          <Card padding="md" title="Pay per call in USDC">
             <p className="text-sm text-slate-300 leading-relaxed">
               Native Solana Pay micropayments through the <code>X-402-Payment</code> header. A guard call costs a few cents, sized
               so a safety check is never worth skipping. Billing stays off until you configure a wallet.
             </p>
           </Card>
 
-          <Card padding="md" title="📡 Live oracle stream">
+          <Card padding="md" title="Live oracle stream">
             <p className="text-sm text-slate-300 leading-relaxed">
               Server sent events carry live Pyth readings for SOL, USDC, and USDT: price, confidence interval width, and publish
               staleness. A widening confidence band is the earliest warning of oracle driven liquidation risk.
