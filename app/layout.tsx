@@ -9,24 +9,23 @@ const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.io';
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'SolSentry | Solana AI Agent Risk Engine & De-Leveraging Middleware',
+    default: 'SolSentry | Transaction Guard and Risk Engine for Solana AI Agents',
     template: '%s | SolSentry Solana',
   },
-  description: 'Real time quantitative risk scoring, position health monitoring, Pyth oracle telemetry, and automated guardrail policy enforcement for Solana AI trading agents.',
+  description:
+    'A transaction guard for Solana AI agents. It simulates a transaction before signing, detects wallet drainer patterns, and scores protocol risk from live sources. Available over MCP, a TypeScript SDK, a CLI, and REST.',
   keywords: [
     'Solana',
     'SolSentry',
     'AI Agents',
+    'Transaction Simulator',
+    'Wallet Drainer Detection',
     'DeFi Risk Engine',
-    'Solana AI Trading',
+    'MCP Server',
     'Pyth Oracle',
     'Kamino Finance',
     'Jupiter Exchange',
     'Drift Protocol',
-    'Pump.fun',
-    'ElizaOS Solana',
-    'Solana Agent Kit',
-    'De-leveraging',
     'Quantitative Risk Score',
   ],
   authors: [{ name: 'SolSentry Security Team', url: siteUrl }],
@@ -54,8 +53,9 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: siteUrl,
-    title: 'SolSentry | Solana AI Agent Risk Engine & De-Leveraging Middleware',
-    description: 'Real time quantitative risk scoring, position liquidation monitoring, and guardrail policy enforcement for Solana AI trading agents.',
+    title: 'SolSentry | Transaction Guard and Risk Engine for Solana AI Agents',
+    description:
+      'Simulate a transaction before signing, detect wallet drainer patterns, and score protocol risk from live sources. For Solana AI trading agents.',
     siteName: 'SolSentry',
     images: [
       {
@@ -68,8 +68,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SolSentry | Solana AI Agent Risk Engine',
-    description: 'Real time quantitative risk scoring and de-leveraging middleware for Solana AI trading agents.',
+    title: 'SolSentry | Transaction Guard for Solana AI Agents',
+    description:
+      'One call before signing. Simulate a transaction, catch wallet drainers, and score protocol risk from live sources.',
     site: '@SolSentry',
     creator: '@SolSentry',
     images: [`${siteUrl}/og-image.png`],
@@ -109,7 +110,8 @@ export default function RootLayout({
       price: '0.00',
       priceCurrency: 'USD',
     },
-    description: 'Solana AI Agent Quantitative Risk Scoring, Position Health Monitoring, and Automated De-leveraging Middleware.',
+    description:
+      'A transaction guard for Solana AI agents. Simulate before signing, detect wallet drainers, and score protocol risk from live sources.',
     url: siteUrl,
   };
 

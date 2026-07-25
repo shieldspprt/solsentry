@@ -64,6 +64,35 @@ export interface SimulateTxResponse {
   logs: string[];
 }
 
+export interface GuardTransactionRequest {
+  transaction: string;
+  encoding?: 'base58' | 'base64';
+  /** Optional context. When set, protocol risk and policy fold into the verdict. */
+  protocolSlug?: string;
+  action?: string;
+  amountUsd?: number;
+  currentDailyVolumeUsd?: number;
+  currentDrawdownPct?: number;
+  openPositionsCount?: number;
+}
+
+export interface GuardTransactionResponse {
+  verdict: 'SIGN' | 'DO_NOT_SIGN';
+  proceed: boolean;
+  blockingReasons: string[];
+  simulation: {
+    status: string;
+    succeeds: boolean;
+    computeUnits: number;
+    highCompute: boolean;
+    netTokenDeltas: SimulateTxResponse['netTokenDeltas'];
+    drainer: SimulateTxResponse['drainerScan'];
+  };
+  protocol: Record<string, any> | null;
+  policy: Record<string, any> | null;
+  nextStep: string;
+}
+
 export class SolSentryClient {
   private baseUrl: string;
   private apiKey?: string;
@@ -119,6 +148,19 @@ export class SolSentryClient {
 
   async simulateTransaction(params: SimulateTxRequest): Promise<SimulateTxResponse> {
     return this.fetchJson<SimulateTxResponse>('/api/v1/simulate', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * The one call to make before signing. Simulates the transaction against
+   * mainnet without broadcasting it, scans for wallet drainer patterns, and
+   * (when protocolSlug/action/amountUsd are supplied) folds in the protocol
+   * risk gate and policy guardrails. Returns a single SIGN / DO_NOT_SIGN verdict.
+   */
+  async guard(params: GuardTransactionRequest): Promise<GuardTransactionResponse> {
+    return this.fetchJson<GuardTransactionResponse>('/api/v1/guard', {
       method: 'POST',
       body: JSON.stringify(params),
     });
