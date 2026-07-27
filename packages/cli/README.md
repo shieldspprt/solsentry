@@ -6,7 +6,7 @@ Command line tool for [SolSentry](https://solsentry.netlify.app). Guard a Solana
 npm install -g @npmsolsentry/cli
 ```
 
-The package installs `solsentry` as the primary executable.
+The package installs `npmsolsentry-cli` as the primary executable.
 
 ## Commands
 

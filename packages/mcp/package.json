@@ -24,7 +24,7 @@
   },
   "type": "module",
   "bin": {
-    "solsentry-mcp": "./dist/index.js"
+    "npmsolsentry-mcp": "./dist/index.js"
   },
   "main": "dist/index.js",
   "files": [
