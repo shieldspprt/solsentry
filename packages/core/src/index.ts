@@ -6,6 +6,7 @@ export * from './policy-engine';
 export * from './stress-engine';
 export * from './wallet-reader';
 export * from './simulation/tx-simulator';
+export * from './simulation/inner-instruction-parser';
 export * from './data-fetchers/helius';
 export * from './data-fetchers/pyth';
 export * from './data-fetchers/defillama';

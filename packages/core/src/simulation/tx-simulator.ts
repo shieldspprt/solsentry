@@ -1,6 +1,7 @@
-import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
+import { Connection, Transaction, VersionedTransaction, MessageV0, PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { detectDrainerPatterns, BalanceDeltaSummary, DrainerScanResult } from './drainer-detector';
+import { extractHiddenTokenTransfers, HiddenTokenTransfer } from './inner-instruction-parser';
 import { logger } from '../../../../lib/logger';
 
 export interface TokenDelta {
@@ -18,6 +19,7 @@ export interface TxSimulationResult {
   unitsConsumed: number;
   highComputeWarning: boolean;
   netTokenDeltas: TokenDelta[];
+  hiddenTransfers: HiddenTokenTransfer[];
   drainerScan: DrainerScanResult;
   logs: string[];
   errorMessage?: string;
@@ -65,6 +67,7 @@ export async function simulateSolanaTransaction(
       unitsConsumed: 0,
       highComputeWarning: false,
       netTokenDeltas: [],
+      hiddenTransfers: [],
       drainerScan: {
         isDrainerPattern: false,
         riskLevel: 'SAFE',
@@ -90,6 +93,7 @@ export async function simulateSolanaTransaction(
       unitsConsumed: 0,
       highComputeWarning: false,
       netTokenDeltas: [],
+      hiddenTransfers: [],
       drainerScan: {
         isDrainerPattern: false,
         riskLevel: 'SAFE',
@@ -122,6 +126,7 @@ export async function simulateSolanaTransaction(
       unitsConsumed: 0,
       highComputeWarning: false,
       netTokenDeltas: [],
+      hiddenTransfers: [],
       drainerScan: {
         isDrainerPattern: false,
         riskLevel: 'SAFE',
@@ -140,9 +145,27 @@ export async function simulateSolanaTransaction(
       legacyTx.recentBlockhash = latestBlockhash.blockhash;
     }
 
-    const simRes = versionedTx
-      ? await connection.simulateTransaction(versionedTx, { sigVerify: false })
-      : await connection.simulateTransaction(legacyTx!, undefined, false);
+        // Unify all into a VersionedTransaction so we can use the SimulateTransactionConfig config
+    let finalTx: VersionedTransaction;
+    if (versionedTx) {
+      finalTx = versionedTx;
+    } else {
+      const msg = legacyTx!.compileMessage();
+      finalTx = new VersionedTransaction(
+        MessageV0.compile({
+          payerKey: legacyTx!.feePayer || new PublicKey('11111111111111111111111111111111'),
+          instructions: legacyTx!.instructions,
+          recentBlockhash: legacyTx!.recentBlockhash || '11111111111111111111111111111111'
+        })
+      );
+    }
+
+    const simRes = await connection.simulateTransaction(finalTx, { sigVerify: false, innerInstructions: true } as any);
+    
+    // Parse inner instructions for deep traces
+    const accountKeys = finalTx.message.staticAccountKeys.map(k => k.toString());
+    const hiddenTransfers = extractHiddenTokenTransfers((simRes.value as any).innerInstructions || [], accountKeys);
+
 
     const value = simRes.value;
     const logs = value.logs || [];
@@ -215,7 +238,7 @@ export async function simulateSolanaTransaction(
         : undefined,
     }));
 
-    const drainerScan = detectDrainerPatterns(instructionLogs, balanceDeltas);
+    const drainerScan = detectDrainerPatterns(instructionLogs, balanceDeltas, hiddenTransfers);
 
     return {
       success: !value.err,
@@ -223,6 +246,7 @@ export async function simulateSolanaTransaction(
       unitsConsumed,
       highComputeWarning,
       netTokenDeltas,
+      hiddenTransfers,
       drainerScan,
       logs,
       errorMessage: value.err ? JSON.stringify(value.err) : undefined,
@@ -235,6 +259,7 @@ export async function simulateSolanaTransaction(
       unitsConsumed: 0,
       highComputeWarning: false,
       netTokenDeltas: [],
+      hiddenTransfers: [],
       drainerScan: {
         isDrainerPattern: false,
         riskLevel: 'SAFE',
