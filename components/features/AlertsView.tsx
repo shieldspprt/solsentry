@@ -15,6 +15,7 @@ export interface AlertsViewProps {
 
 export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
   const [streamEvents, setStreamEvents] = useState<any[]>([]);
+  const [anomalyEvents, setAnomalyEvents] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const slotStream = useSolanaSlotStream();
 
@@ -29,6 +30,15 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
         try {
           const data = JSON.parse(e.data);
           setStreamEvents((prev) => [data, ...prev.slice(0, 9)]);
+        } catch {
+          // Ignore
+        }
+      });
+
+      eventSource.addEventListener('anomaly', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          setAnomalyEvents((prev) => [data, ...prev.slice(0, 9)]);
         } catch {
           // Ignore
         }
@@ -57,6 +67,11 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
           <Badge variant={isStreaming ? 'low' : 'info'}>
             {isStreaming ? '⚡ Oracle Stream Connected' : 'Oracle Stream Re-connecting'}
           </Badge>
+          {anomalyEvents.length > 0 && (
+            <Badge variant={anomalyEvents[0]?.severity === 'critical' ? 'critical' : 'high'}>
+              {anomalyEvents.length} live anomaly{anomalyEvents.length === 1 ? '' : 'ies'}
+            </Badge>
+          )}
           <Badge variant={slotStream.status === 'connected' ? 'low' : 'info'}>
             {slotStream.status === 'connected'
               ? `◉ Solana WS · slot ${slotStream.lastSlot?.slot ?? '—'}`
@@ -66,6 +81,49 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
           </Badge>
         </div>
       </div>
+
+      <Card
+        title="Live Anomaly Detection"
+        subtitle="Explainable online baseline per feed: rolling median/MAD plus EWMA variance over price returns, confidence-band expansion, oracle staleness, slot lag, and stablecoin de-peg deviation. Events are emitted on the same SSE stream as `event: anomaly`."
+      >
+        {anomalyEvents.length === 0 ? (
+          <div className="p-6 text-center text-slate-400 text-sm">
+            No anomaly events in this browser session. The detector is still learning per-feed baselines and will alert on guardrail breaches immediately.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {anomalyEvents.map((evt, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-xl border text-xs ${
+                  evt.severity === 'critical' ? 'bg-red-950/35 border-red-800/70' : 'bg-amber-950/35 border-amber-800/70'
+                }`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-2.5 h-2.5 rounded-full animate-pulse ${evt.severity === 'critical' ? 'bg-red-400' : 'bg-amber-400'}`} />
+                    <span className={`font-bold uppercase ${evt.severity === 'critical' ? 'text-red-300' : 'text-amber-300'}`}>
+                      {evt.severity} anomaly
+                    </span>
+                    <span className="font-mono text-slate-200">{evt.feed}</span>
+                    <span className="font-mono text-slate-500">score {evt.score}/100</span>
+                  </div>
+                  <span className="font-mono text-slate-500">{new Date(evt.timestamp || Date.now()).toLocaleTimeString()}</span>
+                </div>
+                <p className="mt-2 text-sm text-slate-200 font-semibold">{evt.summary}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(evt.feature_contributions || []).slice(0, 4).map((c: any) => (
+                    <span key={c.key} className="rounded-lg border border-slate-700 bg-slate-950/70 px-2.5 py-1 font-mono text-slate-300">
+                      {c.label}: {c.value} {c.unit}
+                      {typeof c.robust_z === 'number' ? ` · z ${c.robust_z}` : ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Live SSE Stream Event Feed — every value below comes from Pyth Hermes */}
       <Card

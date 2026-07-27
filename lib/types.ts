@@ -21,7 +21,15 @@ export type PositionStatus = 'open' | 'closed' | 'liquidated';
 
 export type ViolationSeverity = 'warning' | 'blocked' | 'circuit_breaker';
 
-export type AlertType = 'liquidation_risk' | 'health_factor_low' | 'depeg' | 'protocol_exploit' | 'oracle_down' | 'drawdown_limit' | 'bonding_curve_dump';
+export type AlertType =
+  | 'liquidation_risk'
+  | 'health_factor_low'
+  | 'depeg'
+  | 'protocol_exploit'
+  | 'oracle_down'
+  | 'drawdown_limit'
+  | 'bonding_curve_dump'
+  | 'oracle_anomaly';
 
 export type AlertSeverity = 'info' | 'warning' | 'critical';
 
@@ -275,6 +283,70 @@ export interface DataQualityIndicator {
   total_sources_count: number;
   is_reliable: boolean;
   warning?: string;
+}
+
+// ============================================
+// Online anomaly detection primitives
+// ============================================
+
+export type AnomalySeverity = 'info' | 'warning' | 'critical';
+
+export type AnomalyFeatureKey =
+  | 'price_return_bps'
+  | 'confidence_band_bps'
+  | 'confidence_expansion_bps'
+  | 'oracle_staleness_ms'
+  | 'slot_lag_ms'
+  | 'stablecoin_depeg_bps';
+
+export interface AnomalyFeatureContribution {
+  key: AnomalyFeatureKey;
+  label: string;
+  value: number;
+  unit: string;
+  direction: 'high' | 'absolute';
+  baseline_median: number | null;
+  baseline_mad: number | null;
+  baseline_ewma: number | null;
+  robust_z: number | null;
+  ewma_z: number | null;
+  score: number; // 0..100, higher = more anomalous
+  rationale: string;
+}
+
+export interface AnomalyBaselineWindow {
+  method: 'rolling_median_mad+ewma';
+  window_size: number;
+  min_samples: number;
+  observations: Partial<Record<AnomalyFeatureKey, number>>;
+}
+
+export interface AnomalyEvent {
+  id: string;
+  type: 'oracle_anomaly';
+  feed: string;
+  severity: AnomalySeverity;
+  score: number; // 0..100, higher = more anomalous
+  summary: string;
+  feature_contributions: AnomalyFeatureContribution[];
+  baseline_window: AnomalyBaselineWindow;
+  timestamp: string;
+  source: string;
+  provenance: {
+    source: string;
+    as_of: string | null;
+    received_at: string;
+    previous_as_of: string | null;
+    confidence: number;
+  };
+  telemetry: {
+    price: number;
+    confidence_bps: number;
+    staleness_ms: number;
+    slot_lag_ms: number;
+    price_return_bps: number | null;
+    stablecoin_depeg_bps: number | null;
+  };
 }
 
 export interface InstitutionalFactorsBreakdown {

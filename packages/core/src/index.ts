@@ -4,6 +4,7 @@ export * from './risk-scorer';
 export * from './position-monitor';
 export * from './policy-engine';
 export * from './stress-engine';
+export * from './anomaly-detector';
 export * from './wallet-reader';
 export * from './simulation/tx-simulator';
 export * from './simulation/inner-instruction-parser';
