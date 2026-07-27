@@ -41,7 +41,7 @@ function severityFor(confidenceBps: number, stalenessMs: number): 'ok' | 'degrad
 
 /** Align all instances to one deterministic sampling timestamp. */
 export function oracleSampleBucket(now: Date, heartbeatMs = ORACLE_HEARTBEAT_MS): string {
-  return new Date(Math.floor(now.getTime() / heartbeatMs) * heartbeatMs).toISOString();
+  return new Date(Math.ceil(now.getTime() / heartbeatMs) * heartbeatMs).toISOString();
 }
 
 /**

@@ -2,7 +2,7 @@
 
 Model Context Protocol server for [SolSentry](https://solsentry.netlify.app). Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk from your agent.
 
-It is a thin stdio proxy. It holds no keys and runs no engine code. The transport runs locally so your client can add it in one line, while the risk engine, live data grounding, and API keys stay server side. The package exposes both `solsentry-mcp` and the legacy `npmsolsentry-mcp` binary names.
+It is a thin stdio proxy. It holds no keys and runs no engine code. The transport runs locally so your client can add it in one line, while the risk engine, live data grounding, and API keys stay server side. The package exposes the `npmsolsentry-mcp` binary name.
 
 ## Add to Claude Desktop or Cursor
 

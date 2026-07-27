@@ -17,8 +17,8 @@ function persistence(claim = true): AnomalyPersistence {
 
 describe('OracleStreamMonitor', () => {
   it('aligns sampling timestamps across serverless instances', () => {
-    expect(oracleSampleBucket(new Date('2026-07-27T12:00:04.999Z'))).toBe('2026-07-27T12:00:00.000Z');
-    expect(oracleSampleBucket(new Date('2026-07-27T12:00:05.001Z'))).toBe('2026-07-27T12:00:05.000Z');
+    expect(oracleSampleBucket(new Date('2026-07-27T12:00:04.999Z'))).toBe('2026-07-27T12:00:05.000Z');
+    expect(oracleSampleBucket(new Date('2026-07-27T12:00:05.001Z'))).toBe('2026-07-27T12:00:10.000Z');
   });
 
   it('shares one poll across multiple SSE subscribers and dispatches a claimed event once', async () => {
