@@ -1,5 +1,5 @@
 {
-  "name": "@solsentry/payment",
+  "name": "@npmsolsentry/payment",
   "version": "1.0.0",
   "description": "Pay-as-you-go USDC payment handler for SolSentry MCP calls",
   "main": "dist/index.js",

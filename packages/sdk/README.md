@@ -1,15 +1,15 @@
-# @solsentry/sdk
+# @npmsolsentry/sdk
 
 TypeScript SDK for [SolSentry](https://solsentry.io). Guard a Solana transaction before your agent signs it: simulate the bytes against mainnet, detect wallet drainer patterns, and score protocol risk from live sources.
 
 ```bash
-npm install @solsentry/sdk
+npm install @npmsolsentry/sdk
 ```
 
 ## The one call before signing
 
 ```ts
-import { SolSentryClient } from '@solsentry/sdk';
+import { SolSentryClient } from '@npmsolsentry/sdk';
 
 const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
 

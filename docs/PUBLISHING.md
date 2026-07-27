@@ -5,9 +5,9 @@ Three packages are published. Everything else in `packages/` is marked
 
 | Package | What it is | `npx` / install |
 | :--- | :--- | :--- |
-| `@solsentry/mcp` | Thin stdio MCP proxy. The one an agent adds to Claude or Cursor. | `npx -y @solsentry/mcp` |
-| `@solsentry/sdk` | TypeScript client. `guard`, `simulate`, `checkProtocolRisk`, `preflight`. | `npm i @solsentry/sdk` |
-| `@solsentry/cli` | Terminal tool. `check`, `simulate`, `policy`. Depends on the SDK. | `npm i -g @solsentry/cli` |
+| `@npmsolsentry/mcp` | Thin stdio MCP proxy. The one an agent adds to Claude or Cursor. | `npx -y @npmsolsentry/mcp` |
+| `@npmsolsentry/sdk` | TypeScript client. `guard`, `simulate`, `checkProtocolRisk`, `preflight`. | `npm i @npmsolsentry/sdk` |
+| `@npmsolsentry/cli` | Terminal tool. `check`, `simulate`, `policy`. Depends on the SDK. | `npm i -g @npmsolsentry/cli` |
 
 ## One time setup
 
@@ -25,7 +25,7 @@ npm login
 Confirm the scope is free before the first publish:
 
 ```bash
-npm view @solsentry/sdk   # should 404 (E404) until you publish
+npm view @npmsolsentry/sdk   # should 404 (E404) until you publish
 ```
 
 ## Publish order
@@ -44,7 +44,7 @@ npm publish
 cd ../mcp
 npm publish
 
-# 3. CLI  (resolves @solsentry/sdk from npm, so publish it after the SDK)
+# 3. CLI  (resolves @npmsolsentry/sdk from npm, so publish it after the SDK)
 cd ../cli
 npm publish
 ```
@@ -58,7 +58,7 @@ a stale or missing `dist/` cannot ship.
 Smoke test the published MCP proxy against your hosted instance:
 
 ```bash
-SOLSENTRY_URL=https://solsentry.io npx -y @solsentry/mcp
+SOLSENTRY_URL=https://solsentry.io npx -y @npmsolsentry/mcp
 # It should print: solsentry mcp proxy connected to https://solsentry.io/api/v1/mcp
 # Ctrl-C to exit.
 ```
@@ -71,7 +71,7 @@ form instead of a local file path:
   "mcpServers": {
     "solsentry": {
       "command": "npx",
-      "args": ["-y", "@solsentry/mcp"],
+      "args": ["-y", "@npmsolsentry/mcp"],
       "env": { "SOLSENTRY_URL": "https://solsentry.io" }
     }
   }
@@ -80,7 +80,7 @@ form instead of a local file path:
 
 ## Cutting a new version
 
-Bump all three in lockstep so the CLI's `@solsentry/sdk` range stays satisfied.
+Bump all three in lockstep so the CLI's `@npmsolsentry/sdk` range stays satisfied.
 
 ```bash
 npm version patch -w packages/sdk -w packages/mcp -w packages/cli   # if using workspaces

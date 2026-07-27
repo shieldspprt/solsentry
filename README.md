@@ -31,8 +31,8 @@ Around that sits an open source, provenance tagged protocol risk engine and poli
 An agent reaches SolSentry over one of four surfaces:
 
 1. **MCP** with nine `solsentry_*` tools, for Claude, Cursor, and any MCP client.
-2. **TypeScript SDK** (`@solsentry/sdk`) for custom bots.
-3. **CLI** (`@solsentry/cli`) for the terminal.
+2. **TypeScript SDK** (`@npmsolsentry/sdk`) for custom bots.
+3. **CLI** (`@npmsolsentry/cli`) for the terminal.
 4. **REST** for everything else.
 
 The engine grounds each request in live data before answering:
@@ -95,10 +95,10 @@ Live example. Drift scores well on audits, TVL, and holder concentration, but lo
 
 ## Quickstart
 
-### TypeScript SDK (`@solsentry/sdk`)
+### TypeScript SDK (`@npmsolsentry/sdk`)
 
 ```ts
-import { SolSentryClient } from '@solsentry/sdk';
+import { SolSentryClient } from '@npmsolsentry/sdk';
 
 const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
 
@@ -117,10 +117,10 @@ if (!verdict.proceed) {
 }
 ```
 
-### CLI (`@solsentry/cli`)
+### CLI (`@npmsolsentry/cli`)
 
 ```bash
-npm install -g @solsentry/cli
+npm install -g @npmsolsentry/cli
 
 # Score a protocol
 solsentry check kamino --details
@@ -163,9 +163,9 @@ solsentry/
     dashboard/        Overview, simulator, positions, policies, alerts
   packages/
     core/             Risk scorer, simulator, drainer detector, wallet reader, data fetchers
-    sdk/              TypeScript client (@solsentry/sdk)
-    cli/              Developer CLI (@solsentry/cli)
-    payment/          x402 USDC micropayment verifier (@solsentry/payment)
+    sdk/              TypeScript client (@npmsolsentry/sdk)
+    cli/              Developer CLI (@npmsolsentry/cli)
+    payment/          x402 USDC micropayment verifier (@npmsolsentry/payment)
     mcp-server/       Model Context Protocol server
   lib/                Shared auth, security, cache, and logging utilities
   sql/                PostgreSQL schema and row level security policies

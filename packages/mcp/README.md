@@ -1,4 +1,4 @@
-# @solsentry/mcp
+# @npmsolsentry/mcp
 
 Model Context Protocol server for [SolSentry](https://solsentry.io). Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk from your agent.
 
@@ -13,7 +13,7 @@ In `claude_desktop_config.json` (or your Cursor MCP config):
   "mcpServers": {
     "solsentry": {
       "command": "npx",
-      "args": ["-y", "@solsentry/mcp"],
+      "args": ["-y", "@npmsolsentry/mcp"],
       "env": { "SOLSENTRY_URL": "https://solsentry.io" }
     }
   }

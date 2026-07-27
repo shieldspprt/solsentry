@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Solana Transaction Pre-Execution Simulator**: Deserializes raw base58/base64 Solana payloads, replaces recent blockhashes, executes RPC simulation with `sigVerify: false`, tracks Compute Units (CU), and computes incoming vs. outgoing SOL/SPL token balance deltas.
 - **Wallet Drainer Pattern Detector**: Scans instruction logs for malicious sequences (`Approve` or `SetAuthority` followed by immediate `Transfer` / `CloseAccount`, or >90% single-tx account balance drains).
-- **Official Agent TypeScript SDK (`@solsentry/sdk`)**: Standalone TypeScript package for Solana AI trading bots providing `checkProtocolRisk()`, `evaluatePolicy()`, `preflight()`, and `simulateTransaction()`.
-- **Official ElizaOS Agent Plugin (`@solsentry/eliza-plugin`)**: Standalone plugin enabling ElizaOS (ai16z) AI agents to seamlessly run SolSentry risk actions.
+- **Official Agent TypeScript SDK (`@npmsolsentry/sdk`)**: Standalone TypeScript package for Solana AI trading bots providing `checkProtocolRisk()`, `evaluatePolicy()`, `preflight()`, and `simulateTransaction()`.
+- **Official ElizaOS Agent Plugin (`@npmsolsentry/eliza-plugin`)**: Standalone plugin enabling ElizaOS (ai16z) AI agents to seamlessly run SolSentry risk actions.
 - **RugCheck API Integration**: Dynamic token security report fetcher inspecting mint/freeze authority, LP lock status, and token risk scores with 15-minute TTL caching.
 - **Data Quality Indicator**: Explicit `data_quality` metrics (`live_sources_count`, `is_reliable`, `warning`) attached to composite risk outputs.
 - **Asset-Tiered Volatility in Stress Engine**: Differentiates 1-sigma daily volatility by asset class (Stablecoins 0.5%, Majors 6.0%, Mid-caps 15.0%, Memecoins 40.0%).

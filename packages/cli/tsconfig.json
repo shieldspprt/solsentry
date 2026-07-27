@@ -12,7 +12,7 @@
     "forceConsistentCasingInFileNames": true,
     "baseUrl": ".",
     "paths": {
-      "@solsentry/sdk": ["../sdk/dist/index.d.ts"]
+      "@npmsolsentry/sdk": ["../sdk/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"]

@@ -1,9 +1,9 @@
-# @solsentry/cli
+# @npmsolsentry/cli
 
 Command line tool for [SolSentry](https://solsentry.io). Guard a Solana transaction before signing, score protocol risk, and check policy from your terminal.
 
 ```bash
-npm install -g @solsentry/cli
+npm install -g @npmsolsentry/cli
 ```
 
 ## Commands

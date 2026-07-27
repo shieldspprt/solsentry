@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * @solsentry/mcp
+ * @npmsolsentry/mcp
  *
  * A thin stdio Model Context Protocol server that forwards every tool call to
  * the hosted SolSentry HTTP endpoint. It runs the transport locally so an agent
@@ -11,14 +11,14 @@
  * SolSentry instance with SOLSENTRY_URL, and attribute or pay for calls with
  * SOLSENTRY_API_KEY if the instance requires it.
  *
- *   npx @solsentry/mcp
+ *   npx @npmsolsentry/mcp
  *
  * Config for claude_desktop_config.json:
  *   {
  *     "mcpServers": {
  *       "solsentry": {
  *         "command": "npx",
- *         "args": ["-y", "@solsentry/mcp"],
+ *         "args": ["-y", "@npmsolsentry/mcp"],
  *         "env": { "SOLSENTRY_URL": "https://solsentry.io" }
  *       }
  *     }
