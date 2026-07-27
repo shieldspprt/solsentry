@@ -4,9 +4,10 @@
 
 ### A transaction guard and protocol risk engine for Solana AI agents
 
-[![Model Version](https://img.shields.io/badge/model-v3.1-cyan.svg?style=for-the-badge)](packages/core/src/risk-scorer.ts)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Model Version](https://img.shields.io/badge/model-v3.1.5-cyan.svg?style=for-the-badge)](packages/core/src/risk-scorer.ts)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![MCP Ready](https://img.shields.io/badge/MCP-9%20tools-purple.svg?style=for-the-badge)](packages/mcp)
+[![Tests](https://img.shields.io/badge/tests-69%20passing-brightgreen.svg?style=for-the-badge)](packages/core/src/__tests__)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
 [![npm](https://img.shields.io/badge/npm-%40npmsolsentry%2Fmcp-red.svg?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@npmsolsentry/mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-verified-purple.svg?style=for-the-badge)](https://smithery.ai/server/@npmsolsentry/mcp)
@@ -27,6 +28,23 @@ if (!verdict.proceed) return;   // do not sign
 ```
 
 Around that sits an open source, provenance tagged protocol risk engine and policy guardrail middleware for Solana AI trading agents and autonomous bots. Every risk factor names its data source. Anything the engine cannot measure is reported as unmeasured rather than filled in with a plausible constant.
+
+### What is new in v3.1.5
+
+The guard answers a question at the moment you ask it. This release is mostly about the two problems that sit on either side of that moment: not crying wolf when a transaction is ordinary, and noticing when a feed goes wrong between calls.
+
+| Area | Change |
+| :--- | :--- |
+| **Fewer false positives** | Routine CPI token transfers and compensated swap sweeps are now returned as *observations* with zero penalty. A drainer signal requires corroboration: an authority mutation, or a measured balance sweep the wallet is not paid back for. |
+| **Deeper simulation** | Typed SPL Token and Token&#8209;2022 inner instruction parsing, address lookup table resolution, and native payer balance analysis, surfaced through the SDK and the simulator UI. |
+| **Explainable anomaly detection** | A per feed rolling median/MAD + EWMA baseline over price returns, confidence band expansion, staleness, slot lag, and stablecoin de&#8209;peg. Events carry severity, score, and per feature contributions. |
+| **Durability** | Detector state, anomaly events, webhook subscriptions, and delivery outcomes persist in Supabase. Deterministic event IDs are claimed before side effects, so a serverless fleet cannot double fire a webhook. |
+| **One poller per process** | Per client anomaly polling was replaced by a shared process monitor, so ten dashboard tabs cost one upstream subscription rather than ten. |
+| **Resilient WebSocket streaming** | A browser native `slotSubscribe` stream with jittered exponential backoff that closes unhealthy idle sockets instead of presenting stale network state as live. |
+| **Supply chain** | Next.js, React, Vitest, and vulnerable transitive dependencies upgraded. All audited package trees report zero vulnerabilities. |
+| **Housekeeping** | Middleware migrated to the `proxy.ts` convention, root level patch scripts removed, and the oracle sampling bucket corrected so it can never precede Pyth's `asOf` timestamp. |
+
+Package metadata, the Smithery manifest, and the app constants are aligned at **v3.1.5**. See the [CHANGELOG](CHANGELOG.md) for the full history.
 
 ### How the pieces fit
 
@@ -57,6 +75,8 @@ The engine grounds each request in live data before answering:
 - **Provenance tagged scoring.** Eight risk factors, each carrying its data source, timestamp, and confidence. A factor with no live source is reported as unmeasured, scores nothing, and has its weight redistributed across the factors that do have data. Every response includes a `factor_coverage` object, and the engine withholds a directional recommendation below 50% coverage.
 - **Realized exploit gate.** Every protocol is checked against DeFiLlama's hacks dataset. A large recent loss can force a `block` verdict on its own, regardless of how healthy the other factors look. See [Exploit history can override the score](#exploit-history-can-override-the-score).
 - **Transaction simulator.** Asks the RPC to replace the recent blockhash, tracks compute units, resolves address-lookup-table keys, and reports incoming/outgoing token deltas plus parsed SPL Token and Token-2022 CPI transfers.
+- **Explainable oracle anomaly detection.** A per feed online detector maintains a rolling median/MAD baseline plus an EWMA variance estimate over five features: price return, confidence band expansion, oracle staleness, slot lag, and stablecoin de-peg. Guardrail thresholds fire immediately on dangerous readings even before a baseline has warmed up. Every event names the features that drove it and the size of the window behind them, so an agent can act on a reason rather than a bare score. See [Live monitoring](#live-monitoring-and-anomaly-events).
+- **Durable, deduplicated alerting.** Detector baselines, anomaly events, webhook subscriptions, and delivery outcomes persist in Postgres. Deterministic event IDs are claimed before any side effect, so two serverless instances observing the same feed cannot deliver the same webhook twice.
 - **Stress testing.** Applies adverse price shocks against real on chain positions and reports which liquidate, the capital at risk, and the collateral needed to restore a safe health factor.
 - **Pay per call in USDC.** Solana Pay micropayments through the `X-402-Payment` header. Billing stays off until `X402_RECIPIENT_WALLET` is set, so every endpoint is free until you configure a wallet.
 
@@ -92,6 +112,53 @@ Live example. Drift scores well on audits, TVL, and holder concentration, but lo
 ### Positions are never simulated
 
 `positions/read`, `stress_test`, and `get_position_health` operate only on real on chain data read for a wallet address (Kamino obligations today, Drift pending). Without a wallet they return an empty set and say so. They never return sample positions.
+
+---
+
+## Live monitoring and anomaly events
+
+A guard call answers a question at the instant you ask it. Between calls, `GET /api/v1/stream` keeps watching. It is a Server-Sent Events feed carrying two event families:
+
+- `event: telemetry` — raw Pyth Hermes readings for SOL, USDC, and USDT: price, confidence interval, staleness, and health score.
+- `event: anomaly` — scored, explainable anomaly events.
+
+### What the detector actually measures
+
+Each feed carries an independent baseline: a rolling median with median absolute deviation, plus an EWMA mean and variance for feeds that drift. Five features are scored against it.
+
+| Feature | What a spike means |
+| :--- | :--- |
+| `price_return_bps` | Move between consecutive samples, relative to the feed's own normal volatility. |
+| `confidence_expansion_bps` | Publishers disagreeing more than usual — the earliest warning of oracle driven liquidation risk. |
+| `oracle_staleness_ms` | The feed has stopped updating. |
+| `slot_lag_ms` | The oracle is falling behind the chain. |
+| `stablecoin_depeg_bps` | Distance from one dollar on a feed that is supposed to hold it. |
+
+Two properties matter for an agent consuming this:
+
+1. **It explains itself.** Every event carries `severity`, a 0–100 `score`, `feature_contributions` naming which features drove it and by how much, and `baseline_window` counts so you can tell a warmed-up baseline from a cold one.
+2. **It does not wait to warm up.** Baseline z-scores need history, so hardcoded guardrail thresholds fire immediately on dangerous absolute readings. A de-peg during the first minute of uptime still alerts.
+
+### Delivery guarantees
+
+All SSE clients in one process share a single upstream poller. With Supabase configured, the detector snapshot survives cold starts and deterministic event IDs are claimed in Postgres *before* any side effect, so two serverless instances observing the same feed cannot deliver the same webhook twice. Without Supabase the stream still works and says explicitly that it is running in process-only mode.
+
+Sampling buckets are derived from Pyth's own `asOf` timestamp, so a bucket can never be stamped earlier than the data it contains.
+
+### Subscribing to a callback
+
+```bash
+curl -X POST https://solsentry.netlify.app/api/v1/webhooks/subscribe \
+  -H "X-SolSentry-API-Key: $SOLSENTRY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://alerts.example.com/solsentry","events":["oracle_anomaly"]}'
+```
+
+Subscriptions are attributed to the API key that created them. `GET` the same endpoint with that key to list your callbacks. Callback URLs are validated, and HTTPS is enforced in production.
+
+### Network health in the dashboard
+
+The alerts view also holds a direct `slotSubscribe` JSON-RPC WebSocket to the configured Solana RPC. It reconnects with jittered exponential backoff, re-subscribes on every open, and marks an idle socket unhealthy rather than presenting stale network state as live. No wallet or transaction data is sent over it — point `NEXT_PUBLIC_SOLANA_WS_URL` at a public RPC.
 
 ---
 
@@ -364,21 +431,7 @@ curl -X POST https://solsentry.netlify.app/api/v1/stress-test \
   -d '{"wallet": "7xK9vW2zL...", "shockPct": 30}'
 ```
 
-The `/api/v1/stream` SSE feed emits two event families:
-
-- `event: telemetry` — raw Pyth Hermes price, confidence interval, staleness, and health score.
-- `event: anomaly` — explainable online anomaly events from a per-feed rolling median/MAD + EWMA baseline over price returns, confidence-band expansion, oracle staleness, slot lag, and stablecoin de-peg deviation. Each event includes severity, score, feature contributions, baseline-window counts, timestamp, and source provenance.
-
-All SSE clients in one process share one poller. With Supabase configured, the detector snapshot survives cold starts and deterministic event IDs are claimed in Postgres before side effects, preventing duplicate webhooks across serverless instances.
-
-Persist a callback using an attributed API key:
-
-```bash
-curl -X POST https://solsentry.netlify.app/api/v1/webhooks/subscribe \
-  -H "X-SolSentry-API-Key: $SOLSENTRY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://alerts.example.com/solsentry","events":["oracle_anomaly"]}'
-```
+The `/api/v1/stream` SSE feed emits `event: telemetry` (raw Pyth readings) and `event: anomaly` (scored, explainable events). Callbacks are registered at `POST /api/v1/webhooks/subscribe`. Both are documented in full under [Live monitoring and anomaly events](#live-monitoring-and-anomaly-events).
 
 ### 7. CLI in CI/CD or Scripts
 
@@ -404,6 +457,9 @@ echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
 | `NEXT_PUBLIC_SOLANA_WS_URL` | No | derived from `NEXT_PUBLIC_HELIUS_RPC_URL` | Browser WebSocket RPC used for the dashboard's `slotSubscribe` network-health stream. Use a public RPC URL only; no wallet data is sent. |
 | `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Production | — | Persists anomaly baselines/events and authenticated webhook subscriptions. Without these, the stream explicitly runs in process-only mode. |
 | `ANOMALY_WEBHOOK_URLS` | No | — | Optional static comma-separated callbacks in addition to persisted subscriptions. HTTPS is enforced in production. |
+| `SUPABASE_DB_*` | For migrations | — | Host, port, name, user, and password used by `npm run migrate`. Not needed at runtime. |
+| `GITHUB_TOKEN` | No | — | Raises the GitHub REST rate limit for the developer-activity factor. Without it that factor may report as unmeasured. |
+| `X402_RECIPIENT_WALLET` | No | — | Enables USDC pay-per-call. Every endpoint is free until this is set. |
 
 ---
 
@@ -421,9 +477,12 @@ solsentry/
     payment/          x402 USDC micropayment verifier (@npmsolsentry/payment)
     mcp/              Published MCP stdio proxy (@npmsolsentry/mcp)
     mcp-server/       Internal MCP server (consumed in-process by Next.js)
-  lib/                Shared auth, security, cache, and logging utilities
+  lib/                Shared auth, cache, logging, oracle monitor, anomaly persistence
+  proxy.ts            Request middleware (auth, CORS, body limits, rate limiting)
   sql/                PostgreSQL schema and row level security policies
 ```
+
+Request middleware lives in `proxy.ts` at the repo root, following the Next.js middleware convention this project migrated to in v3.1.4.
 
 ---
 
@@ -442,11 +501,14 @@ The migration is idempotent. Its detector-state function accepts only monotonic 
 
 ## Testing
 
-Node.js 20.19.4 or newer is required. The suite includes property based fuzz testing over the scorer.
+Node.js 20.19.4 or newer is required. **69 tests across 13 files** currently pass, including property based fuzz testing over the scorer and deterministic coverage of the anomaly detector, inner instruction parser, drainer heuristics, monitor deduplication, cold start restoration, and webhook validation.
 
 ```bash
 # Run the Vitest unit and fuzz suite
 npm test -- --run
+
+# Typecheck the Next application
+npm run lint
 
 # Compile the workspace packages
 npx tsc -p packages/sdk/tsconfig.json
@@ -455,6 +517,9 @@ npx tsc -p packages/payment/tsconfig.json
 
 # Production build
 npm run build
+
+# Dependency audit — all package trees report zero findings
+npm audit --audit-level=moderate
 ```
 
 ---
@@ -463,7 +528,7 @@ npm run build
 
 The `mcp.json` at the repo root is the Smithery manifest. To publish:
 
-1. Ensure `@npmsolsentry/mcp` is published to npm (already done: v3.1.4)
+1. Ensure `@npmsolsentry/mcp` is published to npm. Source and manifest are at v3.1.5; the latest tag on npm is v3.1.4, so run [`./publish.sh`](docs/PUBLISHING.md) to cut the release before resubmitting.
 2. Push `mcp.json` to the GitHub repo
 3. Submit at https://smithery.ai/new — point to `https://github.com/shieldspprt/solsentry`
 4. Smithery reads `mcp.json`, builds the Docker image, and lists it in the registry

@@ -11,10 +11,11 @@ export const McpGuideView: React.FC = () => {
   const claudeConfigJson = `{
   "mcpServers": {
     "solsentry": {
-      "command": "node",
-      "args": ["packages/mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@npmsolsentry/mcp"],
       "env": {
-        "SOLSENTRY_URL": "http://localhost:3000"
+        "SOLSENTRY_URL": "https://solsentry.netlify.app",
+        "SOLSENTRY_API_KEY": "your_api_key_optional"
       }
     }
   }
@@ -23,7 +24,11 @@ export const McpGuideView: React.FC = () => {
   const cursorConfigJson = `{
   "mcpServers": {
     "solsentry": {
-      "url": "http://localhost:3000/api/v1/mcp"
+      "command": "npx",
+      "args": ["-y", "@npmsolsentry/mcp"],
+      "env": {
+        "SOLSENTRY_URL": "https://solsentry.netlify.app"
+      }
     }
   }
 }`;
@@ -79,8 +84,8 @@ export const McpGuideView: React.FC = () => {
 
         <Card padding="md">
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Registered Tools</span>
-          <span className="text-xl font-extrabold text-emerald-400 mt-2 block">5 Core Tools</span>
-          <span className="text-xs text-emerald-300 font-semibold mt-1 block">Risk, Policy, Oracles</span>
+          <span className="text-xl font-extrabold text-emerald-400 mt-2 block">9 Canonical Tools</span>
+          <span className="text-xs text-emerald-300 font-semibold mt-1 block">Guard, Simulation, Risk, Policy</span>
         </Card>
 
         <Card padding="md">
@@ -145,6 +150,33 @@ export const McpGuideView: React.FC = () => {
             <div className="space-y-6 text-sm">
               <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
                 <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-cyan-300 text-base">solsentry_guard_transaction</span>
+                  <Badge variant="critical">Pre-Sign Gate</Badge>
+                </div>
+                <p className="text-slate-300">
+                  The one call before signing. Simulates the serialized bytes against mainnet, scans top-level and inner CPI
+                  instructions for drainer patterns, and folds in protocol risk and policy guardrails for one SIGN / DO_NOT_SIGN
+                  verdict with reasons.
+                </p>
+                <div className="text-xs font-mono text-slate-400">
+                  Parameters: transaction (string, required), encoding (base58 | base64), protocolSlug, action, amountUsd
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-bold text-cyan-300 text-base">solsentry_simulate_transaction</span>
+                  <Badge variant="medium">Dry Run</Badge>
+                </div>
+                <p className="text-slate-300">
+                  Read-only simulation with <code>sigVerify: false</code>. Returns balance deltas, parsed SPL Token and Token-2022
+                  inner transfers, address lookup table resolution, compute units consumed, and drainer signals. Broadcasts nothing.
+                </p>
+                <div className="text-xs font-mono text-slate-400">Parameters: transaction (string, required), encoding (base58 | base64)</div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
                   <span className="font-mono font-bold text-cyan-300 text-base">solsentry_check_protocol_risk</span>
                   <Badge variant="low">Read Only</Badge>
                 </div>
@@ -172,6 +204,26 @@ export const McpGuideView: React.FC = () => {
                 </div>
                 <p className="text-slate-300">
                   Scans open positions ranked by distance to liquidation, returning exact dollar amounts to restore safety.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Also registered</span>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {['solsentry_get_protocol_list', 'solsentry_preflight', 'solsentry_stress_test', 'solsentry_get_business_ratios'].map(
+                    (tool) => (
+                      <span
+                        key={tool}
+                        className="font-mono text-xs text-slate-300 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1"
+                      >
+                        {tool}
+                      </span>
+                    )
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 pt-1">
+                  Nine canonical tools in total. Legacy <code>agentgate_</code> and bare <code>get_</code> names still dispatch for
+                  backward compatibility.
                 </p>
               </div>
             </div>

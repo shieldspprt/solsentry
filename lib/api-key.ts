@@ -54,7 +54,7 @@ function getDirectSupabaseAdmin() {
   if (!url || !serviceKey) return null;
   return createClient(url, serviceKey, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { 'x-client-info': 'solsentry-apikey@3.1.4' } },
+    global: { headers: { 'x-client-info': 'solsentry-apikey@3.1.5' } },
   });
 }
 

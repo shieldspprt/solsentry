@@ -75,7 +75,7 @@ async function callHosted(method: string, params?: unknown): Promise<any> {
 }
 
 const server = new Server(
-  { name: 'solsentry', version: '3.1.4' },
+  { name: 'solsentry', version: '3.1.5' },
   { capabilities: { tools: {} } }
 );
 
