@@ -87,7 +87,7 @@ ever run or test this project locally.
 
 ### C1 — Every browser-side live fetch is rejected 401
 
-`middleware.ts` requires an API key on all `/api/*` except a short public list. The dashboard calls
+`proxy.ts` requires an API key on all `/api/*` except a short public list. The dashboard calls
 `/api/v1/risk-check`, `/api/v1/positions/read`, `/api/v1/sync`, `/api/v1/stream` from the browser
 with **no key**. Verified against the running app:
 

@@ -12,6 +12,10 @@ ALTER TABLE policy_violations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE x402_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE protocols ENABLE ROW LEVEL SECURITY;
+ALTER TABLE oracle_anomaly_detector_state ENABLE ROW LEVEL SECURITY;
+ALTER TABLE oracle_anomaly_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webhook_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webhook_deliveries ENABLE ROW LEVEL SECURITY;
 
 -- Protocols are publicly readable
 DROP POLICY IF EXISTS "Protocols are publicly readable" ON protocols;

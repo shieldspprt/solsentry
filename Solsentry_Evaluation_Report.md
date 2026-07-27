@@ -10,7 +10,7 @@
 SolSentry is a high-quality, full-stack monorepo designed to secure Solana AI agents and auto-trading bots. Its architecture is modern and cleanly separates concerns, making it an excellent base for scaling.
 
 ### Core Strengths
-- **Tech Stack:** Built on Next.js 14, TypeScript (v5.7), TailwindCSS, and the official `@solana/web3.js` tooling.
+- **Tech Stack:** Built on Next.js 16, React 19, TypeScript 5.9, TailwindCSS, and the official `@solana/web3.js` tooling.
 - **Micro-Packages Structure:** The `packages/` directory cleanly segments boundaries into `core` (risk scoring & policy engines), `mcp` / `mcp-server` (Model Context Protocol endpoints for AI ingestion), `sdk` (client consumption), `cli`, and `payment` (L4 monetization layer).
 - **Security-First Focus:** `guard_transaction` simulates a transaction safely against Solana mainnet without broadcasting, blocking known drainers.
 - **Data Grounding:** It aggregates multiple data sources (DeFiLlama hacks, Pyth Oracles, Helius, Jupiter Token API, Github developer activity) into a unified `0-10` risk score.

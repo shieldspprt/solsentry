@@ -146,7 +146,9 @@ export async function fetchOracleHealth(
       // rest of the model already understands.
       slot_lag_ms: Math.round(staleness),
       health_score: Math.round(health * 10) / 10,
-      as_of: new Date().toISOString(),
+      // Pyth publish time, not request time. This preserves provenance and lets
+      // distributed monitors recognize repeated reads of the same update.
+      as_of: new Date(publishTimeMs).toISOString(),
     };
   } catch {
     return null;

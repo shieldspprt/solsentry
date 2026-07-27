@@ -1,6 +1,6 @@
 # @npmsolsentry/sdk
 
-TypeScript SDK for [SolSentry](https://solsentry.io). Guard a Solana transaction before your agent signs it: simulate the bytes against mainnet, detect wallet drainer patterns, and score protocol risk from live sources.
+TypeScript SDK for [SolSentry](https://solsentry.netlify.app). Guard a Solana transaction before your agent signs it: simulate the bytes against mainnet, detect wallet drainer patterns, and score protocol risk from live sources.
 
 ```bash
 npm install @npmsolsentry/sdk
@@ -11,7 +11,7 @@ npm install @npmsolsentry/sdk
 ```ts
 import { SolSentryClient } from '@npmsolsentry/sdk';
 
-const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
+const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.netlify.app' });
 
 const verdict = await sentry.guard({
   transaction: serializedTx,   // base58 or base64
@@ -40,7 +40,7 @@ await sentry.evaluatePolicy({ action: 'lend', protocolSlug: 'kamino', amountUsd:
 
 ```ts
 new SolSentryClient({
-  baseUrl: 'https://solsentry.io', // default
+  baseUrl: 'https://solsentry.netlify.app', // default
   apiKey: 'ss_live_...',           // optional; required only for authenticated endpoints
   timeoutMs: 5000,                 // default
 });

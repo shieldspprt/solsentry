@@ -1,7 +1,7 @@
 {
   "$schema": "https://smithery.ai/schemas/mcp.json",
   "name": "@npmsolsentry/mcp",
-  "version": "3.1.3",
+  "version": "3.1.4",
   "description": "Model Context Protocol server for SolSentry. Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk. Thin stdio proxy; holds no keys.",
   "repository": {
     "url": "https://github.com/shieldspprt/solsentry",
@@ -47,47 +47,7 @@
   "tools": [
     {
       "name": "solsentry_guard_transaction",
-      "description": "Simulate a transaction, scan for drainers, apply protocol risk + policy guardrails. Returns SIGN / DO_NOT_SIGN verdict with reasons.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "transaction": {
-            "type": "string",
-            "description": "Serialized Solana transaction (base58 or base64)"
-          },
-          "protocolSlug": {
-            "type": "string",
-            "description": "Protocol slug to fold in protocol risk and policy (e.g., 'kamino', 'jupiter', 'drift')",
-            "optional": true
-          },
-          "action": {
-            "type": "string",
-            "enum": [
-              "swap",
-              "borrow",
-              "lend",
-              "stake",
-              "unstake",
-              "provide",
-              "withdraw"
-            ],
-            "description": "Action type for policy guardrail evaluation",
-            "optional": true
-          },
-          "amountUsd": {
-            "type": "number",
-            "description": "USD amount for policy evaluation",
-            "optional": true
-          }
-        },
-        "required": [
-          "transaction"
-        ]
-      }
-    },
-    {
-      "name": "solsentry_simulate_transaction",
-      "description": "Dry-run simulation only: balance deltas, compute units, instruction breakdown.",
+      "description": "Simulate transaction bytes, scan for drainers, and optionally apply protocol risk and policy guardrails. Returns SIGN or DO_NOT_SIGN.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -101,7 +61,74 @@
               "base58",
               "base64"
             ],
-            "description": "Transaction encoding",
+            "default": "base58"
+          },
+          "protocolSlug": {
+            "type": "string",
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "swap",
+              "lend",
+              "borrow",
+              "lp",
+              "stake",
+              "perp_long",
+              "perp_short",
+              "buy_bonding_curve"
+            ],
+            "description": "Transaction action"
+          },
+          "amountUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentDailyVolumeUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentDrawdownPct": {
+            "type": "number",
+            "minimum": 0
+          },
+          "openPositionsCount": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "transaction"
+        ]
+      }
+    },
+    {
+      "name": "solsentry_simulate_transaction",
+      "description": "Dry-run a transaction and report balance deltas, inner SPL transfers, compute units, and drainer signals.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "type": "string"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": [
+              "base58",
+              "base64"
+            ],
             "default": "base58"
           }
         },
@@ -111,19 +138,25 @@
       }
     },
     {
-      "name": "solsentry_score_protocol",
-      "description": "Full 8-factor risk score for a protocol slug (e.g., 'kamino', 'jupiter', 'drift').",
+      "name": "solsentry_check_protocol_risk",
+      "description": "Compute the grounded eight-factor risk score for a supported protocol.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "protocolSlug": {
             "type": "string",
-            "description": "Protocol slug from the registry"
-          },
-          "details": {
-            "type": "boolean",
-            "description": "Include full factor breakdown",
-            "default": false
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
           }
         },
         "required": [
@@ -132,68 +165,63 @@
       }
     },
     {
-      "name": "solsentry_read_positions",
-      "description": "Read on-chain positions for a wallet (Kamino obligations, Drift perp positions).",
+      "name": "solsentry_get_protocol_list",
+      "description": "List monitored protocols with live telemetry and risk ratings.",
       "inputSchema": {
         "type": "object",
-        "properties": {
-          "wallet": {
-            "type": "string",
-            "description": "Wallet address (base58)"
-          }
-        },
-        "required": [
-          "wallet"
-        ]
+        "properties": {}
       }
     },
     {
-      "name": "solsentry_stress_test",
-      "description": "Apply adverse price shocks to a wallet's positions; report liquidations and capital at risk.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "wallet": {
-            "type": "string",
-            "description": "Wallet address (base58)"
-          },
-          "shockPct": {
-            "type": "number",
-            "description": "Adverse price shock percentage (default: 30)",
-            "default": 30
-          }
-        },
-        "required": [
-          "wallet"
-        ]
-      }
-    },
-    {
-      "name": "solsentry_policy_evaluate",
-      "description": "Check an intended action (swap, borrow, lend, stake) against policy guardrails for a given USD size.",
+      "name": "solsentry_evaluate_policy",
+      "description": "Evaluate a proposed action against financial guardrails.",
       "inputSchema": {
         "type": "object",
         "properties": {
           "protocolSlug": {
             "type": "string",
-            "description": "Protocol slug"
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
           },
           "action": {
             "type": "string",
             "enum": [
               "swap",
-              "borrow",
               "lend",
+              "borrow",
+              "lp",
               "stake",
-              "unstake",
-              "provide",
-              "withdraw"
+              "perp_long",
+              "perp_short",
+              "buy_bonding_curve"
             ],
-            "description": "Action type"
+            "description": "Transaction action"
           },
           "amountUsd": {
             "type": "number",
-            "description": "USD amount"
+            "minimum": 0.01
+          },
+          "currentDailyVolumeUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentDrawdownPct": {
+            "type": "number",
+            "minimum": 0
+          },
+          "openPositionsCount": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
@@ -204,51 +232,154 @@
       }
     },
     {
-      "name": "solsentry_check_wallet_approvals",
-      "description": "List all token/SPL approvals for a wallet with risk flags.",
+      "name": "solsentry_preflight",
+      "description": "Run protocol risk and policy evaluation together for one pre-trade verdict.",
       "inputSchema": {
         "type": "object",
         "properties": {
-          "wallet": {
+          "protocolSlug": {
             "type": "string",
-            "description": "Wallet address (base58)"
-          }
-        },
-        "required": [
-          "wallet"
-        ]
-      }
-    },
-    {
-      "name": "solsentry_revoke_approvals",
-      "description": "Build revoke transactions for flagged approvals.",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "wallet": {
-            "type": "string",
-            "description": "Wallet address (base58)"
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
           },
-          "approvalAddresses": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "Token account addresses to revoke"
+          "action": {
+            "type": "string",
+            "enum": [
+              "swap",
+              "lend",
+              "borrow",
+              "lp",
+              "stake",
+              "perp_long",
+              "perp_short",
+              "buy_bonding_curve"
+            ],
+            "description": "Transaction action"
+          },
+          "amountUsd": {
+            "type": "number",
+            "minimum": 0.01
+          },
+          "currentDailyVolumeUsd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentDrawdownPct": {
+            "type": "number",
+            "minimum": 0
+          },
+          "openPositionsCount": {
+            "type": "number",
+            "minimum": 0
           }
         },
         "required": [
-          "wallet",
-          "approvalAddresses"
+          "protocolSlug",
+          "action",
+          "amountUsd"
         ]
       }
     },
     {
-      "name": "solsentry_get_protocol_registry",
-      "description": "List all tracked protocols with metadata and current risk tier.",
+      "name": "solsentry_stress_test",
+      "description": "Apply an adverse price shock and report liquidation and capital-at-risk outcomes.",
       "inputSchema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "protocolSlug": {
+            "type": "string",
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": "string"
+          },
+          "priceShockPct": {
+            "type": "number",
+            "minimum": -95,
+            "maximum": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "solsentry_get_position_health",
+      "description": "Read on-chain positions and evaluate health factors and liquidation distance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "protocolSlug": {
+            "type": "string",
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "walletAddress": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "solsentry_get_business_ratios",
+      "description": "Compute protocol fee-to-TVL, revenue capture, and TVL efficiency metrics.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "protocolSlug": {
+            "type": "string",
+            "enum": [
+              "kamino",
+              "drift",
+              "jupiter",
+              "orca",
+              "raydium",
+              "meteora",
+              "marinade",
+              "jito",
+              "pumpfun"
+            ],
+            "description": "Target protocol slug"
+          }
+        },
+        "required": [
+          "protocolSlug"
+        ]
       }
     }
   ]

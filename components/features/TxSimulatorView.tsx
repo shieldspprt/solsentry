@@ -32,11 +32,14 @@ export const TxSimulatorView: React.FC = () => {
         unitsConsumed: 0,
         highComputeWarning: false,
         netTokenDeltas: [],
+        hiddenTransfers: [],
         drainerScan: {
           isDrainerPattern: false,
           riskLevel: 'CRITICAL',
           scorePenalty: 100,
           warnings: ['Network or server error executing simulation: ' + err.message],
+          detectedPatterns: [],
+          observations: [],
         },
         logs: [],
       });
@@ -146,6 +149,31 @@ export const TxSimulatorView: React.FC = () => {
                       <li key={idx}>{w}</li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {result.drainerScan.observations.length > 0 && (
+                <div className="p-4 rounded-xl bg-cyan-950/30 border border-cyan-800/50 space-y-2">
+                  <h4 className="text-sm font-bold text-cyan-300">Simulation observations</h4>
+                  <ul className="list-disc list-inside text-xs text-cyan-100 space-y-1">
+                    {result.drainerScan.observations.map((observation, idx) => (
+                      <li key={idx}>{observation}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {result.hiddenTransfers.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-bold text-slate-200 mb-3">Inner SPL transfers (CPI)</h4>
+                  <div className="space-y-2">
+                    {result.hiddenTransfers.map((transfer, idx) => (
+                      <div key={idx} className="rounded-lg border border-slate-800 bg-slate-950/70 p-3 font-mono text-xs text-slate-300">
+                        <span className="text-cyan-300">{transfer.instructionType}</span>{' '}
+                        {transfer.amount} units · {transfer.sourceAccount.slice(0, 8)}… → {transfer.destinationAccount.slice(0, 8)}…
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

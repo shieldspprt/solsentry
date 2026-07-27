@@ -1,11 +1,14 @@
-import { Connection, Transaction, VersionedTransaction, MessageV0, PublicKey } from '@solana/web3.js';
+import { Connection, Transaction, VersionedTransaction } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { detectDrainerPatterns, BalanceDeltaSummary, DrainerScanResult } from './drainer-detector';
 import { extractHiddenTokenTransfers, HiddenTokenTransfer } from './inner-instruction-parser';
 import { logger } from '../../../../lib/logger';
 
 export interface TokenDelta {
+  /** Token account whose balance changed. */
   account: string;
+  /** Wallet owner reported by the RPC, when available. */
+  owner?: string;
   mint: string;
   tokenSymbol?: string;
   preAmount: number;
@@ -74,6 +77,7 @@ export async function simulateSolanaTransaction(
         scorePenalty: 0,
         warnings: ['Empty or invalid transaction payload provided'],
         detectedPatterns: [],
+        observations: [],
       },
       logs: [],
       errorMessage: 'Transaction payload string is required',
@@ -100,6 +104,7 @@ export async function simulateSolanaTransaction(
         scorePenalty: 0,
         warnings: [`Payload is not valid ${encoding}. Check the encoding parameter.`],
         detectedPatterns: [],
+        observations: [],
       },
       logs: [],
       errorMessage: `Could not decode the payload as ${encoding}`,
@@ -133,6 +138,7 @@ export async function simulateSolanaTransaction(
         scorePenalty: 0,
         warnings: ['Failed to deserialize Solana transaction payload'],
         detectedPatterns: [],
+        observations: [],
       },
       logs: [],
       errorMessage: 'Failed to deserialize transaction payload: ' + err.message,
@@ -140,34 +146,28 @@ export async function simulateSolanaTransaction(
   }
 
   try {
-    const latestBlockhash = await connection.getLatestBlockhash();
-    if (legacyTx) {
-      legacyTx.recentBlockhash = latestBlockhash.blockhash;
-    }
-
-        // Unify all into a VersionedTransaction so we can use the SimulateTransactionConfig config
-    let finalTx: VersionedTransaction;
-    if (versionedTx) {
-      finalTx = versionedTx;
-    } else {
-      const msg = legacyTx!.compileMessage();
-      finalTx = new VersionedTransaction(
-        MessageV0.compile({
-          payerKey: legacyTx!.feePayer || new PublicKey('11111111111111111111111111111111'),
-          instructions: legacyTx!.instructions,
-          recentBlockhash: legacyTx!.recentBlockhash || '11111111111111111111111111111111'
-        })
-      );
-    }
-
-    const simRes = await connection.simulateTransaction(finalTx, { sigVerify: false, innerInstructions: true } as any);
-    
-    // Parse inner instructions for deep traces
-    const accountKeys = finalTx.message.staticAccountKeys.map(k => k.toString());
-    const hiddenTransfers = extractHiddenTokenTransfers((simRes.value as any).innerInstructions || [], accountKeys);
-
+    // Use the versioned simulation overload for both transaction formats. The
+    // RPC replaces the blockhash, so signed transactions can be simulated
+    // without mutating their message or invalidating signatures locally.
+    const finalTx = versionedTx ?? new VersionedTransaction(legacyTx!.compileMessage());
+    const simRes = await connection.simulateTransaction(
+      finalTx,
+      { sigVerify: false, replaceRecentBlockhash: true, innerInstructions: true } as any
+    );
 
     const value = simRes.value;
+    const loadedAddresses = (value as any).loadedAddresses as
+      | { writable?: Array<{ toString(): string } | string>; readonly?: Array<{ toString(): string } | string> }
+      | undefined;
+    // Versioned messages may reference address lookup tables. Inner instruction
+    // account indexes address static keys first, then loaded writable/read-only
+    // keys, so include all three groups when resolving transfer accounts.
+    const accountKeys = [
+      ...finalTx.message.staticAccountKeys.map((key) => key.toString()),
+      ...(loadedAddresses?.writable ?? []).map((key) => key.toString()),
+      ...(loadedAddresses?.readonly ?? []).map((key) => key.toString()),
+    ];
+    const hiddenTransfers = extractHiddenTokenTransfers((value as any).innerInstructions || [], accountKeys);
     const logs = value.logs || [];
     const unitsConsumed = value.unitsConsumed || 0;
     const highComputeWarning = unitsConsumed > 200_000;
@@ -176,28 +176,33 @@ export async function simulateSolanaTransaction(
     const balanceDeltas: BalanceDeltaSummary[] = [];
 
     // Parse pre and post token balances if returned
-    const preBalances = (value as any).preTokenBalances || [];
-    const postBalances = (value as any).postTokenBalances || [];
+    const preTokenBalances = (value as any).preTokenBalances || [];
+    const postTokenBalances = (value as any).postTokenBalances || [];
 
-    const balanceMap = new Map<string, { pre: number; post: number; mint: string; account: string }>();
+    const balanceMap = new Map<
+      string,
+      { pre: number; post: number; mint: string; account: string; owner?: string }
+    >();
 
-    for (const pre of preBalances) {
+    for (const pre of preTokenBalances) {
       const key = `${pre.accountIndex}_${pre.mint}`;
       balanceMap.set(key, {
         pre: pre.uiTokenAmount?.uiAmount || 0,
         post: 0,
         mint: pre.mint,
-        account: pre.owner || `Account #${pre.accountIndex}`,
+        account: accountKeys[pre.accountIndex] || `Account #${pre.accountIndex}`,
+        owner: pre.owner || undefined,
       });
     }
 
-    for (const post of postBalances) {
+    for (const post of postTokenBalances) {
       const key = `${post.accountIndex}_${post.mint}`;
       const existing = balanceMap.get(key) || {
         pre: 0,
         post: 0,
         mint: post.mint,
-        account: post.owner || `Account #${post.accountIndex}`,
+        account: accountKeys[post.accountIndex] || `Account #${post.accountIndex}`,
+        owner: post.owner || undefined,
       };
       existing.post = post.uiTokenAmount?.uiAmount || 0;
       balanceMap.set(key, existing);
@@ -208,6 +213,7 @@ export async function simulateSolanaTransaction(
       if (Math.abs(delta) > 0.000001) {
         netTokenDeltas.push({
           account: item.account,
+          owner: item.owner,
           mint: item.mint,
           preAmount: item.pre,
           postAmount: item.post,
@@ -221,6 +227,32 @@ export async function simulateSolanaTransaction(
           postBalanceSol: item.post,
           netDeltaSol: delta,
           pctChange,
+          assetType: 'token',
+          owner: item.owner,
+          mint: item.mint,
+        });
+      }
+    }
+
+    // Native SOL sweep detection is scoped to the fee payer. Looking at every
+    // program/vault account touched by a DeFi transaction would misclassify
+    // routine pool movements as wallet drains.
+    const preLamports = (value as any).preBalances?.[0];
+    const postLamports = (value as any).postBalances?.[0];
+    const feePayer = accountKeys[0];
+    if (typeof preLamports === 'number' && typeof postLamports === 'number' && feePayer) {
+      const preSol = preLamports / 1_000_000_000;
+      const postSol = postLamports / 1_000_000_000;
+      const deltaSol = postSol - preSol;
+      if (Math.abs(deltaSol) > 0.000001) {
+        balanceDeltas.push({
+          account: feePayer,
+          preBalanceSol: preSol,
+          postBalanceSol: postSol,
+          netDeltaSol: deltaSol,
+          pctChange: preSol > 0 ? (deltaSol / preSol) * 100 : deltaSol > 0 ? 100 : -100,
+          assetType: 'native',
+          owner: feePayer,
         });
       }
     }
@@ -266,6 +298,7 @@ export async function simulateSolanaTransaction(
         scorePenalty: 0,
         warnings: ['RPC simulation call failed'],
         detectedPatterns: [],
+        observations: [],
       },
       logs: [],
       errorMessage: err.message,

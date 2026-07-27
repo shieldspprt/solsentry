@@ -17,11 +17,12 @@ import { handleGetBusinessRatios } from './tools/get-business-ratios';
 import { handlePreflight } from './tools/preflight';
 import { handleStressTest } from './tools/stress-test';
 import { DEFAULT_POLICY_RULES, RISK_MODEL_VERSION } from '../../../packages/core/src/constants';
+import { APP_VERSION } from '../../../lib/version';
 
 const server = new Server(
   {
     name: 'solsentry-mcp-server',
-    version: '3.0.0',
+    version: APP_VERSION,
   },
   {
     capabilities: {
@@ -154,7 +155,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('AgentGate MCP Server v2.5.0 listening on stdio transport.');
+  console.error(`SolSentry MCP Server v${APP_VERSION} listening on stdio transport.`);
 }
 
 main().catch((error) => {

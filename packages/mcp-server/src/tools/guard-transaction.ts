@@ -98,6 +98,7 @@ export async function handleGuardTransaction(args: GuardTransactionArgs) {
       computeUnits: sim.unitsConsumed,
       highCompute: sim.highComputeWarning,
       netTokenDeltas: sim.netTokenDeltas,
+      hiddenTransfers: sim.hiddenTransfers,
       drainer: sim.drainerScan,
     },
 

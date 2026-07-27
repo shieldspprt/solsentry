@@ -49,17 +49,31 @@ export interface SimulateTxResponse {
   highComputeWarning: boolean;
   netTokenDeltas: Array<{
     account: string;
+    owner?: string;
     mint: string;
     tokenSymbol?: string;
     preAmount: number;
     postAmount: number;
     delta: number;
   }>;
+  hiddenTransfers: Array<{
+    programId: string;
+    sourceAccount: string;
+    destinationAccount: string;
+    authorityAccount?: string;
+    amount: string;
+    mint?: string;
+    instructionType: 'transfer' | 'transferChecked';
+    parentInstructionIndex?: number;
+    stackHeight?: number;
+  }>;
   drainerScan: {
     isDrainerPattern: boolean;
     riskLevel: string;
     scorePenalty: number;
     warnings: string[];
+    detectedPatterns: string[];
+    observations: string[];
   };
   logs: string[];
 }
@@ -86,6 +100,7 @@ export interface GuardTransactionResponse {
     computeUnits: number;
     highCompute: boolean;
     netTokenDeltas: SimulateTxResponse['netTokenDeltas'];
+    hiddenTransfers: SimulateTxResponse['hiddenTransfers'];
     drainer: SimulateTxResponse['drainerScan'];
   };
   protocol: Record<string, any> | null;

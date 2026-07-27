@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TOOL_DEFINITIONS, dispatchToolCall } from '../../../../packages/mcp-server/src/tool-registry';
 import { logger } from '../../../../lib/logger';
+import { APP_VERSION, MCP_PROTOCOL_VERSION } from '../../../../lib/version';
 
 export async function GET() {
   return NextResponse.json({
     name: 'solsentry-mcp-server',
-    version: '3.0.0',
-    protocol_version: '2024-11-05',
+    version: APP_VERSION,
+    protocol_version: MCP_PROTOCOL_VERSION,
     transport: 'HTTP POST & SSE',
     endpoint: '/api/v1/mcp',
     status: 'online',
@@ -27,9 +28,9 @@ export async function POST(request: NextRequest) {
         jsonrpc: '2.0',
         id,
         result: {
-          protocolVersion: '2024-11-05',
+          protocolVersion: MCP_PROTOCOL_VERSION,
           capabilities: { tools: {}, resources: {}, prompts: {} },
-          serverInfo: { name: 'solsentry-mcp-server', version: '3.0.0' },
+          serverInfo: { name: 'solsentry-mcp-server', version: APP_VERSION },
         },
       });
     }

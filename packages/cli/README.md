@@ -1,10 +1,12 @@
 # @npmsolsentry/cli
 
-Command line tool for [SolSentry](https://solsentry.io). Guard a Solana transaction before signing, score protocol risk, and check policy from your terminal.
+Command line tool for [SolSentry](https://solsentry.netlify.app). Guard a Solana transaction before signing, score protocol risk, and check policy from your terminal.
 
 ```bash
 npm install -g @npmsolsentry/cli
 ```
+
+The package installs `solsentry` as the primary executable and keeps `npmsolsentry-cli` as a compatibility alias.
 
 ## Commands
 
@@ -23,7 +25,7 @@ solsentry policy swap jupiter 5000
 
 ```
 -k, --api-key <key>    API key, for authenticated or metered endpoints
--e, --endpoint <url>   SolSentry base URL (default: https://solsentry.io)
+-e, --endpoint <url>   SolSentry base URL (default: https://solsentry.netlify.app)
 -v, --verbose          Verbose output
 ```
 
