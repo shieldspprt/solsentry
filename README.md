@@ -384,6 +384,7 @@ echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
 | `SOLSENTRY_API_KEY` | No | — | API key for authenticated/metered calls |
 | `SOLSENTRY_TIMEOUT_MS` | No | `20000` | Request timeout in milliseconds |
 | `SOLSENTRY_X402_PAYMENT` | No | — | x402 payment header for pay-per-call (USDC) |
+| `NEXT_PUBLIC_SOLANA_WS_URL` | No | derived from `NEXT_PUBLIC_HELIUS_RPC_URL` | Browser WebSocket RPC used for the dashboard's `slotSubscribe` network-health stream. Use a public RPC URL only; no wallet data is sent. |
 
 ---
 

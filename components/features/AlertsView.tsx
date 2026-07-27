@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { AlertRecord } from '../../lib/types';
 import { formatDate } from '../../lib/formatters';
+import { useSolanaSlotStream } from '../../hooks/use-solana-slot-stream';
 
 export interface AlertsViewProps {
   /** Stored alerts, when a position store is configured. Never sample data. */
@@ -15,6 +16,7 @@ export interface AlertsViewProps {
 export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
   const [streamEvents, setStreamEvents] = useState<any[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const slotStream = useSolanaSlotStream();
 
   useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -51,9 +53,16 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
           <h2 className="text-3xl font-extrabold text-slate-100 tracking-tight">Alerts</h2>
           <p className="text-sm text-slate-300 mt-1">Real time feed of position risks and live streaming telemetry</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <Badge variant={isStreaming ? 'low' : 'info'}>
-            {isStreaming ? '⚡ Live Stream Connected' : 'Stream Re-connecting'}
+            {isStreaming ? '⚡ Oracle Stream Connected' : 'Oracle Stream Re-connecting'}
+          </Badge>
+          <Badge variant={slotStream.status === 'connected' ? 'low' : 'info'}>
+            {slotStream.status === 'connected'
+              ? `◉ Solana WS · slot ${slotStream.lastSlot?.slot ?? '—'}`
+              : slotStream.status === 'unavailable'
+                ? 'Solana WS unavailable'
+                : 'Solana WS connecting'}
           </Badge>
         </div>
       </div>
@@ -110,6 +119,35 @@ export const AlertsView: React.FC<AlertsViewProps> = ({ alerts = [] }) => {
             })}
           </div>
         )}
+      </Card>
+
+      <Card
+        title="Solana Network Stream (WebSocket)"
+        subtitle="Direct JSON-RPC slotSubscribe connection to the configured Solana RPC. It reconnects with jittered backoff and marks an idle socket unhealthy rather than presenting stale network state as live."
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 p-1 text-sm">
+          <div className="flex items-center gap-3">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                slotStream.status === 'connected' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              }`}
+            />
+            <span className="font-semibold text-slate-100">
+              {slotStream.status === 'connected' ? 'Receiving slot notifications' : 'Waiting for subscription'}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-slate-400">
+            <span>slot {slotStream.lastSlot?.slot ?? '—'}</span>
+            <span>root {slotStream.lastSlot?.root ?? '—'}</span>
+            <span>
+              {slotStream.lastMessageAt
+                ? `updated ${new Date(slotStream.lastMessageAt).toLocaleTimeString()}`
+                : slotStream.reconnectAttempt > 0
+                  ? `retry ${slotStream.reconnectAttempt}`
+                  : 'connecting'}
+            </span>
+          </div>
+        </div>
       </Card>
 
       {alerts.length === 0 ? (
