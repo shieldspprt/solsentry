@@ -1,7 +1,7 @@
 {
   "$schema": "https://smithery.ai/schemas/mcp.json",
   "name": "@npmsolsentry/mcp",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "Model Context Protocol server for SolSentry. Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk. Thin stdio proxy; holds no keys.",
   "repository": {
     "url": "https://github.com/shieldspprt/solsentry",
