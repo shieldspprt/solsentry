@@ -3,7 +3,7 @@
 import { Command } from 'commander';
 import { SolSentryClient } from '@npmsolsentry/sdk';
 
-const CLI_VERSION = '3.1.4';
+const CLI_VERSION = '3.1.5';
 const program = new Command();
 
 program

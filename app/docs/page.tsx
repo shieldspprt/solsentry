@@ -38,25 +38,45 @@ export default function ApiDocsPage() {
 
 const client = new SolSentryClient({ apiKey: 'YOUR_API_KEY' });
 
-// 1. Check Institutional Protocol Risk
+// 1. The one call before signing — simulate + drainer scan + risk + policy
+const verdict = await client.guard({
+  transaction: 'base58_tx_payload...',
+  protocolSlug: '${testProtocol}',
+  action: 'borrow',
+  amountUsd: 5000,
+});
+if (!verdict.proceed) {
+  console.warn('DO NOT SIGN:', verdict.blockingReasons);
+  return;
+}
+
+// 2. Check Institutional Protocol Risk on its own
 const risk = await client.checkProtocolRisk('${testProtocol}');
 console.log(risk.safetyScore, risk.recommendation);
 
-// 2. Pre-flight Transaction Simulation (Drainer Scan)
+// 3. Dry-run simulation: balance deltas, inner CPI transfers, compute units
 const sim = await client.simulateTransaction({ transaction: 'base58_tx_payload...' });
-console.log(sim.drainerScan.isDrainerPattern);`;
+console.log(sim.drainerScan.isDrainerPattern, sim.drainerScan.observations);`;
     }
     if (selectedLang === 'curl') {
-      return `# 1. Protocol Risk Check
+      return `# 1. Guard a transaction — the one call before signing
+curl -X POST "https://solsentry.netlify.app/api/v1/guard" \\
+  -H "Content-Type: application/json" \\
+  -d '{"transaction":"base58_tx_payload...","protocolSlug":"${testProtocol}","action":"borrow","amountUsd":5000}'
+
+# 2. Protocol Risk Check
 curl -X POST "https://solsentry.netlify.app/api/v1/risk-check" \\
   -H "Content-Type: application/json" \\
   -d '{"protocolSlug":"${testProtocol}"}'
 
-# 2. Transaction Simulation (x402 Pay-As-You-Go)
+# 3. Transaction Simulation (x402 Pay-As-You-Go)
 curl -X POST "https://solsentry.netlify.app/api/v1/simulate" \\
   -H "Content-Type: application/json" \\
   -H "X-402-Payment: tx_signature..." \\
-  -d '{"transaction": "base58_tx_payload..."}'`;
+  -d '{"transaction": "base58_tx_payload..."}'
+
+# 4. Stream oracle telemetry + explainable anomaly events (SSE)
+curl -N "https://solsentry.netlify.app/api/v1/stream"`;
     }
     if (selectedLang === 'python') {
       return `import requests

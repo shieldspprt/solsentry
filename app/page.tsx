@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { APP_VERSION } from '../lib/version';
 
 export default function LandingPage() {
   const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.netlify.app';
@@ -11,7 +12,8 @@ export default function LandingPage() {
     applicationCategory: 'SecurityApplication',
     operatingSystem: 'Solana Network',
     description:
-      'A transaction guard for Solana AI agents. It simulates a transaction before signing, detects wallet drainer patterns, and scores protocol risk from live sources. Available over MCP, a TypeScript SDK, a CLI, and REST.',
+      'A transaction guard for Solana AI agents. It simulates a transaction before signing, detects wallet drainer patterns, scores protocol risk from live sources, and streams explainable oracle anomaly events. Available over MCP, a TypeScript SDK, a CLI, and REST.',
+    softwareVersion: APP_VERSION,
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -49,7 +51,7 @@ export default function LandingPage() {
 
       <main className="max-w-5xl mx-auto px-6 py-16 text-center space-y-10">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-950/80 border border-cyan-800 text-cyan-300 text-xs font-bold uppercase tracking-wider">
-          v3.1 · Drainer detection, exploit gating, per protocol oracles
+          v{APP_VERSION} · Drainer detection, exploit gating, live oracle anomaly detection
         </div>
 
         <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-100 tracking-tight leading-tight">
@@ -74,6 +76,10 @@ export default function LandingPage() {
           <div className="text-cyan-300">const verdict = await sentry.guard(&#123; transaction, protocolSlug: &apos;kamino&apos; &#125;);</div>
           <div className="text-rose-300">{'if (!verdict.proceed) return;   // do not sign'}</div>
           <div className="text-slate-500 mt-2">POST /api/v1/guard   ·   solsentry_guard_transaction over MCP</div>
+          <div className="text-slate-500 mt-1">
+            Watching for trouble between calls: <span className="text-slate-400">GET /api/v1/stream</span> streams telemetry and
+            explainable oracle anomaly events.
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
@@ -100,6 +106,14 @@ export default function LandingPage() {
               <code>guard_transaction</code> simulates the actual bytes, scans for drainer patterns, and folds in protocol risk and
               policy guardrails. It is the only tool here that inspects the transaction you are about to sign, so nothing else can
               copy it from public APIs.
+            </p>
+          </Card>
+
+          <Card padding="md" title="Drainer signals you can trust">
+            <p className="text-sm text-slate-300 leading-relaxed">
+              A routine SPL transfer inside a swap is not a drainer. Inner CPI transfers are now reported as observations with zero
+              penalty, and only escalate when corroborated by an authority mutation or a measured balance sweep. Typed SPL Token and
+              Token&#8209;2022 parsing, address lookup table resolution, and native payer accounting back the call.
             </p>
           </Card>
 
@@ -133,17 +147,34 @@ export default function LandingPage() {
             </p>
           </Card>
 
+          <Card padding="md" title="Explainable oracle anomalies">
+            <p className="text-sm text-slate-300 leading-relaxed">
+              A per feed rolling median/MAD and EWMA baseline scores price returns, confidence band expansion, staleness, slot lag,
+              and stablecoin de&#8209;peg. Every <code>anomaly</code> event carries severity, score, and the exact feature
+              contributions behind it, so an agent can act on a reason rather than a number.
+            </p>
+          </Card>
+
           <Card padding="md" title="Live oracle stream">
             <p className="text-sm text-slate-300 leading-relaxed">
               Server sent events carry live Pyth readings for SOL, USDC, and USDT: price, confidence interval width, and publish
-              staleness. A widening confidence band is the earliest warning of oracle driven liquidation risk.
+              staleness. The dashboard also holds a <code>slotSubscribe</code> WebSocket that reconnects with jittered backoff and
+              marks an idle socket unhealthy instead of showing stale network state as live.
+            </p>
+          </Card>
+
+          <Card padding="md" title="Durable across cold starts">
+            <p className="text-sm text-slate-300 leading-relaxed">
+              Detector baselines, anomaly events, and webhook subscriptions persist in Postgres. Every SSE client in a process shares
+              one poller, and deterministic event IDs are claimed before any side effect, so a serverless fleet never fires the same
+              webhook twice.
             </p>
           </Card>
         </div>
       </main>
 
       <footer className="px-8 py-6 border-t border-slate-800/80 max-w-7xl w-full mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
-        <span>SolSentry v3.1. Open source, MIT licensed.</span>
+        <span>SolSentry v{APP_VERSION}. Open source, MIT licensed.</span>
         <div className="flex items-center gap-6">
           <a href="/docs" className="text-cyan-400 hover:underline">API &amp; SDK Playground</a>
           <a href="/mcp" className="text-cyan-400 hover:underline">MCP Protocol Guide</a>

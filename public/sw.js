@@ -1,4 +1,4 @@
-const CACHE_NAME = 'solsentry-cache-v3.1.4';
+const CACHE_NAME = 'solsentry-cache-v3.1.5';
 const IMMUTABLE_PRECACHE = ['/manifest.json'];
 
 self.addEventListener('push', (event) => {
