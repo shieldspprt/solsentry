@@ -30,7 +30,8 @@ const DRAINER_INSTRUCTION_NAMES = new Set([
 
 export function detectDrainerPatterns(
   instructions: InstructionLogSummary[],
-  balanceDeltas: BalanceDeltaSummary[] = []
+  balanceDeltas: BalanceDeltaSummary[] = [],
+  hiddenTransfers: any[] = []
 ): DrainerScanResult {
   const warnings: string[] = [];
   const detectedPatterns: string[] = [];
@@ -59,6 +60,15 @@ export function detectDrainerPatterns(
       warnings.push(`Notice: Transaction closes a token account and redirects rent SOL.`);
       scorePenalty += 10;
     }
+  }
+
+  
+  // Pattern 1.5: Deeply hidden transfers without clear approvals
+  for (const transfer of hiddenTransfers) {
+    // If we detect a CPI transfer that isn't cleanly mapped to a standard interface, flag it
+    detectedPatterns.push(`Hidden Token Transfer via CPI: ${transfer.amount} tokens moved from ${transfer.sourceAccount}`);
+    warnings.push(`Notice: A token transfer (${transfer.instructionType}) occurred deep within an inner instruction call.`);
+    scorePenalty += 10;
   }
 
   // Pattern 2: Balance Drain (> 90% SOL or Token balance reduction)
