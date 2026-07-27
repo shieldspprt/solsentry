@@ -3,12 +3,13 @@
 import { Command } from 'commander';
 import { SolSentryClient } from '@npmsolsentry/sdk';
 
+const CLI_VERSION = '3.1.4';
 const program = new Command();
 
 program
   .name('solsentry')
   .description('SolSentry CLI - Quantitative Risk Management for Solana AI Agents')
-  .version('3.0.0');
+  .version(CLI_VERSION);
 
 // Global options
 program
@@ -35,7 +36,7 @@ program
       const rec = result.recommendation;
 
       console.log('\n============================================================');
-      console.log(`${protocol.toUpperCase()} Risk Assessment (SolSentry v3.0.0)`);
+      console.log(`${protocol.toUpperCase()} Risk Assessment (SolSentry v${CLI_VERSION})`);
       console.log('============================================================');
       console.log(`Safety Score:   ${score}/10`);
       console.log(`Risk Tier:      ${tier.toUpperCase()}`);

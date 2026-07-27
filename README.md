@@ -11,7 +11,7 @@
 [![npm](https://img.shields.io/badge/npm-%40npmsolsentry%2Fmcp-red.svg?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@npmsolsentry/mcp)
 [![Smithery](https://img.shields.io/badge/Smithery-verified-purple.svg?style=for-the-badge)](https://smithery.ai/server/@npmsolsentry/mcp)
 
-[Live Dashboard](https://solsentry.io/dashboard) &nbsp;·&nbsp; [API & SDK Playground](https://solsentry.io/docs) &nbsp;·&nbsp; [OpenAPI Spec](https://solsentry.io/api/v1/openapi.json) &nbsp;·&nbsp; [Data Integrity Audit](docs/DATA_INTEGRITY_AUDIT.md)
+[Live Dashboard](https://solsentry.netlify.app/dashboard) &nbsp;·&nbsp; [API & SDK Playground](https://solsentry.netlify.app/docs) &nbsp;·&nbsp; [OpenAPI Spec](https://solsentry.netlify.app/api/v1/openapi.json) &nbsp;·&nbsp; [Data Integrity Audit](docs/DATA_INTEGRITY_AUDIT.md)
 
 </div>
 
@@ -53,10 +53,10 @@ The engine grounds each request in live data before answering:
 ## Key capabilities
 
 - **`guard_transaction`, the one call before signing.** Give it a serialized transaction. It simulates the bytes against mainnet, scans for drainer patterns, and (with an optional `protocolSlug`, `action`, and `amountUsd`) folds in the exploit gate and policy guardrails into a single `SIGN` or `DO_NOT_SIGN` verdict with reasons. Available over MCP and at `POST /api/v1/guard`.
-- **Wallet drainer detection.** Deserializes a base58 or base64 transaction, simulates it with `sigVerify: false`, and scans the instruction sequence for drainer patterns: an `Approve` or `SetAuthority` followed by an immediate `Transfer` or `CloseAccount`, or a sweep of more than 90% of an account balance. Read only, needs no key material, broadcasts nothing.
+- **Wallet drainer detection.** Deserializes a base58 or base64 transaction, simulates it with `sigVerify: false`, and scans top-level plus inner CPI instructions. Routine SPL transfers inside swaps, lending, and staking are returned as observations with zero penalty; they become a drainer signal only when corroborated by an authority mutation or a measured balance sweep. Read only, needs no key material, broadcasts nothing.
 - **Provenance tagged scoring.** Eight risk factors, each carrying its data source, timestamp, and confidence. A factor with no live source is reported as unmeasured, scores nothing, and has its weight redistributed across the factors that do have data. Every response includes a `factor_coverage` object, and the engine withholds a directional recommendation below 50% coverage.
 - **Realized exploit gate.** Every protocol is checked against DeFiLlama's hacks dataset. A large recent loss can force a `block` verdict on its own, regardless of how healthy the other factors look. See [Exploit history can override the score](#exploit-history-can-override-the-score).
-- **Transaction simulator.** Replaces the recent blockhash, tracks compute units, and computes the exact incoming and outgoing SOL and SPL token balance deltas.
+- **Transaction simulator.** Asks the RPC to replace the recent blockhash, tracks compute units, resolves address-lookup-table keys, and reports incoming/outgoing token deltas plus parsed SPL Token and Token-2022 CPI transfers.
 - **Stress testing.** Applies adverse price shocks against real on chain positions and reports which liquidate, the capital at risk, and the collateral needed to restore a safe health factor.
 - **Pay per call in USDC.** Solana Pay micropayments through the `X-402-Payment` header. Billing stays off until `X402_RECIPIENT_WALLET` is set, so every endpoint is free until you configure a wallet.
 
@@ -102,7 +102,7 @@ Live example. Drift scores well on audits, TVL, and holder concentration, but lo
 ```ts
 import { SolSentryClient } from '@npmsolsentry/sdk';
 
-const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
+const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.netlify.app' });
 
 // The one call before signing.
 const verdict = await sentry.guard({
@@ -136,7 +136,7 @@ solsentry policy swap jupiter 5000
 
 ### Model Context Protocol (MCP)
 
-SolSentry exposes nine `solsentry_*` tools over stdio via the published `@npmsolsentry/mcp` package. The package is a thin proxy that forwards calls to the hosted SolSentry engine (`https://solsentry.io/api/v1/mcp`), so it holds no keys and runs no engine code locally.
+SolSentry exposes nine `solsentry_*` tools over stdio via the published `@npmsolsentry/mcp` package. The package is a thin proxy that forwards calls to the hosted SolSentry engine (`https://solsentry.netlify.app/api/v1/mcp`), so it holds no keys and runs no engine code locally.
 
 #### Quick install (Claude Desktop, Cursor, any MCP client)
 
@@ -149,7 +149,7 @@ SolSentry exposes nine `solsentry_*` tools over stdio via the published `@npmsol
       "command": "npx",
       "args": ["-y", "@npmsolsentry/mcp"],
       "env": {
-        "SOLSENTRY_URL": "https://solsentry.io",
+        "SOLSENTRY_URL": "https://solsentry.netlify.app",
         "SOLSENTRY_API_KEY": "your_api_key_optional"
       }
     }
@@ -166,7 +166,7 @@ SolSentry exposes nine `solsentry_*` tools over stdio via the published `@npmsol
       "command": "npx",
       "args": ["-y", "@npmsolsentry/mcp"],
       "env": {
-        "SOLSENTRY_URL": "https://solsentry.io"
+        "SOLSENTRY_URL": "https://solsentry.netlify.app"
       }
     }
   }
@@ -183,15 +183,15 @@ npx -y @npmsolsentry/mcp
 
 | Tool | Description |
 |------|-------------|
-| `solsentry_guard_transaction` | Simulate a transaction, scan for drainers, apply protocol risk + policy guardrails. Returns `SIGN` / `DO_NOT_SIGN` verdict with reasons. |
-| `solsentry_simulate_transaction` | Dry-run simulation only: balance deltas, compute units, instruction breakdown. |
-| `solsentry_score_protocol` | Full 8-factor risk score for a protocol slug (e.g., `kamino`, `jupiter`, `drift`). |
-| `solsentry_read_positions` | Read on-chain positions for a wallet (Kamino obligations, Drift perp positions). |
-| `solsentry_stress_test` | Apply adverse price shocks to a wallet's positions; report liquidations and capital at risk. |
-| `solsentry_policy_evaluate` | Check an intended action (swap, borrow, lend, stake) against policy guardrails for a given USD size. |
-| `solsentry_check_wallet_approvals` | List all token/SPL approvals for a wallet with risk flags. |
-| `solsentry_revoke_approvals` | Build revoke transactions for flagged approvals. |
-| `solsentry_get_protocol_registry` | List all tracked protocols with metadata and current risk tier. |
+| `solsentry_guard_transaction` | Simulate transaction bytes, scan for drainers, and apply optional protocol and policy gates. |
+| `solsentry_simulate_transaction` | Dry-run simulation: balance deltas, inner SPL transfers, compute units, and drainer signals. |
+| `solsentry_check_protocol_risk` | Full grounded eight-factor risk score for a protocol slug. |
+| `solsentry_get_protocol_list` | List tracked protocols with live telemetry and risk ratings. |
+| `solsentry_evaluate_policy` | Check an intended action against financial guardrails. |
+| `solsentry_preflight` | Run protocol risk and policy evaluation for one pre-trade verdict. |
+| `solsentry_stress_test` | Apply adverse price shocks and report liquidation and capital at risk. |
+| `solsentry_get_position_health` | Read positions and evaluate health factors and liquidation distance. |
+| `solsentry_get_business_ratios` | Compute fee-to-TVL, revenue-capture, and TVL-efficiency metrics. |
 
 ---
 
@@ -206,14 +206,14 @@ import { SolSentryClient } from '@npmsolsentry/sdk';
 import { tool } from 'ai';
 import { z } from 'zod';
 
-const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
+const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.netlify.app' });
 
 const guardTx = tool({
   description: 'Simulate and risk-check a Solana transaction before signing',
   parameters: z.object({
     txBase58: z.string(),
     protocolSlug: z.string().optional(),
-    action: z.enum(['swap','borrow','lend','stake','unstake','provide','withdraw']).optional(),
+    action: z.enum(['swap','lend','borrow','lp','stake','perp_long','perp_short','buy_bonding_curve']).optional(),
     amountUsd: z.number().optional(),
   }),
   execute: async ({ txBase58, protocolSlug, action, amountUsd }) => {
@@ -236,7 +236,7 @@ from langchain_core.tools import tool
 from pydantic import BaseModel
 import httpx
 
-SENTRY_URL = "https://solsentry.io/api/v1/guard"
+SENTRY_URL = "https://solsentry.netlify.app/api/v1/guard"
 
 class GuardInput(BaseModel):
     transaction: str          # base58 or base64
@@ -278,7 +278,7 @@ class GuardTransactionTool(BaseTool):
         if action: payload["action"] = action
         if amount_usd: payload["amountUsd"] = amount_usd
         
-        resp = httpx.post("https://solsentry.io/api/v1/guard", json=payload, timeout=20)
+        resp = httpx.post("https://solsentry.netlify.app/api/v1/guard", json=payload, timeout=20)
         resp.raise_for_status()
         data = resp.json()
         
@@ -307,7 +307,7 @@ def guard_transaction(tx_base58: str, protocol_slug: str = None, action: str = N
     if action: payload["action"] = action
     if amount_usd: payload["amountUsd"] = amount_usd
     
-    r = httpx.post("https://solsentry.io/api/v1/guard", json=payload, timeout=20)
+    r = httpx.post("https://solsentry.netlify.app/api/v1/guard", json=payload, timeout=20)
     r.raise_for_status()
     data = r.json()
     
@@ -343,23 +343,23 @@ Agent: Verdict: DO_NOT_SIGN. Blocking reasons: ["Protocol Kamino has exploit gat
 
 ```bash
 # Guard a transaction
-curl -X POST https://solsentry.io/api/v1/guard \
+curl -X POST https://solsentry.netlify.app/api/v1/guard \
   -H "Content-Type: application/json" \
   -d '{"transaction": "3s8xK9vW2zL...", "protocolSlug": "kamino", "action": "borrow", "amountUsd": 5000}'
 
 # Score a protocol
-curl -X POST https://solsentry.io/api/v1/risk-check \
+curl -X POST https://solsentry.netlify.app/api/v1/risk-check \
   -H "Content-Type: application/json" \
   -d '{"protocolSlug": "jupiter"}'
 
 # Read wallet positions
-curl "https://solsentry.io/api/v1/positions/read?wallet=7xK9vW2zL..."
+curl "https://solsentry.netlify.app/api/v1/positions/read?wallet=7xK9vW2zL..."
 
 # Stream oracle telemetry + anomaly events (SSE)
-curl -N https://solsentry.io/api/v1/stream
+curl -N https://solsentry.netlify.app/api/v1/stream
 
 # Stress test a wallet
-curl -X POST https://solsentry.io/api/v1/stress-test \
+curl -X POST https://solsentry.netlify.app/api/v1/stress-test \
   -H "Content-Type: application/json" \
   -d '{"wallet": "7xK9vW2zL...", "shockPct": 30}'
 ```
@@ -368,6 +368,17 @@ The `/api/v1/stream` SSE feed emits two event families:
 
 - `event: telemetry` — raw Pyth Hermes price, confidence interval, staleness, and health score.
 - `event: anomaly` — explainable online anomaly events from a per-feed rolling median/MAD + EWMA baseline over price returns, confidence-band expansion, oracle staleness, slot lag, and stablecoin de-peg deviation. Each event includes severity, score, feature contributions, baseline-window counts, timestamp, and source provenance.
+
+All SSE clients in one process share one poller. With Supabase configured, the detector snapshot survives cold starts and deterministic event IDs are claimed in Postgres before side effects, preventing duplicate webhooks across serverless instances.
+
+Persist a callback using an attributed API key:
+
+```bash
+curl -X POST https://solsentry.netlify.app/api/v1/webhooks/subscribe \
+  -H "X-SolSentry-API-Key: $SOLSENTRY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://alerts.example.com/solsentry","events":["oracle_anomaly"]}'
+```
 
 ### 7. CLI in CI/CD or Scripts
 
@@ -386,12 +397,13 @@ echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
 
 | Env var | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `SOLSENTRY_URL` | No | `https://solsentry.io` | Base URL of the SolSentry HTTP API |
+| `SOLSENTRY_URL` | No | `https://solsentry.netlify.app` | Base URL of the SolSentry HTTP API |
 | `SOLSENTRY_API_KEY` | No | — | API key for authenticated/metered calls |
 | `SOLSENTRY_TIMEOUT_MS` | No | `20000` | Request timeout in milliseconds |
 | `SOLSENTRY_X402_PAYMENT` | No | — | x402 payment header for pay-per-call (USDC) |
 | `NEXT_PUBLIC_SOLANA_WS_URL` | No | derived from `NEXT_PUBLIC_HELIUS_RPC_URL` | Browser WebSocket RPC used for the dashboard's `slotSubscribe` network-health stream. Use a public RPC URL only; no wallet data is sent. |
-| `ANOMALY_WEBHOOK_URLS` | No | — | Optional comma-separated HTTP(S) webhook fanout for `oracle_anomaly` events emitted by `/api/v1/stream`. HTTPS is enforced in production. |
+| `NEXT_PUBLIC_SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` | Production | — | Persists anomaly baselines/events and authenticated webhook subscriptions. Without these, the stream explicitly runs in process-only mode. |
+| `ANOMALY_WEBHOOK_URLS` | No | — | Optional static comma-separated callbacks in addition to persisted subscriptions. HTTPS is enforced in production. |
 
 ---
 
@@ -399,7 +411,7 @@ echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
 
 ```
 solsentry/
-  app/                Next.js 14 web dashboard, docs, and API routes
+  app/                Next.js 16 web dashboard, docs, and API routes
     api/v1/           REST endpoints: guard, simulate, risk-check, mcp, stream
     dashboard/        Overview, simulator, positions, policies, alerts
   packages/
@@ -415,9 +427,22 @@ solsentry/
 
 ---
 
+## Database migrations
+
+Anomaly baselines, anomaly-event idempotency, webhook subscriptions, and delivery results use `sql/anomaly-monitoring.sql`. Apply all schema and RLS migrations with the existing migration runner:
+
+```bash
+# Requires the SUPABASE_DB_* variables documented in .env.example
+npm run migrate
+```
+
+The migration is idempotent. Its detector-state function accepts only monotonic sample timestamps, so a delayed serverless invocation cannot overwrite newer baseline state.
+
+---
+
 ## Testing
 
-The suite includes property based fuzz testing over the scorer.
+Node.js 20.19.4 or newer is required. The suite includes property based fuzz testing over the scorer.
 
 ```bash
 # Run the Vitest unit and fuzz suite
@@ -438,7 +463,7 @@ npm run build
 
 The `mcp.json` at the repo root is the Smithery manifest. To publish:
 
-1. Ensure `@npmsolsentry/mcp` is published to npm (already done: v3.1.1)
+1. Ensure `@npmsolsentry/mcp` is published to npm (already done: v3.1.4)
 2. Push `mcp.json` to the GitHub repo
 3. Submit at https://smithery.ai/new — point to `https://github.com/shieldspprt/solsentry`
 4. Smithery reads `mcp.json`, builds the Docker image, and lists it in the registry

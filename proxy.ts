@@ -55,7 +55,7 @@ function getOriginHeader(req: NextRequest): string {
   return appUrl || origin;
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Handle CORS preflight (BROWSER-02)

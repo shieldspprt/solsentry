@@ -5,6 +5,20 @@ All notable changes to the SolSentry project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Durable rolling oracle-anomaly state, deterministic event claiming, persisted webhook subscriptions, and webhook delivery records in Supabase.
+- Dedicated inner-instruction, monitor-deduplication, cold-start restoration, and webhook-validation tests.
+
+### Changed
+- CPI token transfers are now informational unless corroborated by authority mutation or a measured balance sweep, avoiding normal swap/lending false positives.
+- Updated Next.js, React, Vitest, MCP, PostCSS, Sharp, and transitive security overrides; all checked package trees now pass `npm audit` with zero findings.
+- Aligned the Smithery manifest, package metadata, hosted URL, and CLI/MCP binary aliases at v3.1.4.
+
+### Removed
+- Root-level one-off patch scripts and manual transaction probes superseded by deterministic tests.
+
 ## [3.0.0] - 2026-07-23
 
 ### Added

@@ -18,7 +18,7 @@ export const getSupabaseAdmin = () => {
       persistSession: false,
       autoRefreshToken: false,
     },
-    global: { headers: { 'x-client-info': 'solsentry-server@3.0.0' } },
+    global: { headers: { 'x-client-info': 'solsentry-server@3.1.4' } },
   });
 };
 

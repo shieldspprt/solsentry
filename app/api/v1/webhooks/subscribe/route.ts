@@ -1,65 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAnomalyPersistence } from '../../../../../lib/anomaly-persistence';
 import { logger } from '../../../../../lib/logger';
+import {
+  parseWebhookSubscription,
+  WebhookSubscriptionValidationError,
+} from '../../../../../lib/webhook-subscriptions';
 
-export interface WebhookSubscriptionRequest {
-  url: string;
-  events: Array<'liquidation_risk' | 'health_factor_low' | 'depeg' | 'protocol_exploit' | 'oracle_down' | 'oracle_anomaly'>;
-  walletAddress?: string;
-  agentId?: string;
-  thresholdHf?: number;
-}
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
-    const body: WebhookSubscriptionRequest = await request.json();
-
-    if (!body?.url || typeof body.url !== 'string') {
+    const persistence = getAnomalyPersistence();
+    if (!persistence) {
       return NextResponse.json(
-        { error: 'invalid_input', message: 'url (HTTPS callback URL) is required' },
-        { status: 400 }
+        { error: 'service_unavailable', message: 'Webhook persistence is not configured' },
+        { status: 503 }
       );
     }
 
-    try {
-      const parsedUrl = new URL(body.url);
-      if (process.env.NODE_ENV === 'production' && parsedUrl.protocol !== 'https:') {
-        return NextResponse.json(
-          { error: 'invalid_input', message: 'url must use HTTPS protocol in production' },
-          { status: 400 }
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { error: 'invalid_input', message: 'url is not a valid URL string' },
-        { status: 400 }
-      );
-    }
-
-    const events = Array.isArray(body.events) && body.events.length > 0 ? body.events : ['liquidation_risk', 'depeg', 'oracle_anomaly'];
-    const subscriptionId = `sub_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
+    const userId = request.headers.get('x-solsentry-user-id');
+    const input = parseWebhookSubscription(await request.json(), {
+      userId,
+      production: process.env.NODE_ENV === 'production',
+    });
+    const subscription = await persistence.createWebhookSubscription(input);
 
     logger.info('webhook_subscribed', {
-      subscriptionId,
-      url: body.url,
-      events,
-      agentId: body.agentId,
-      walletAddress: body.walletAddress,
+      subscriptionId: subscription.id,
+      events: subscription.events,
+      userId,
+      agentId: subscription.agent_id,
     });
 
     return NextResponse.json({
-      subscriptionId,
-      status: 'active',
-      url: body.url,
-      events,
-      agentId: body.agentId || null,
-      walletAddress: body.walletAddress || null,
-      registeredAt: new Date().toISOString(),
+      subscriptionId: subscription.id,
+      status: subscription.is_active ? 'active' : 'inactive',
+      url: subscription.url,
+      events: subscription.events,
+      agentId: subscription.agent_id,
+      walletAddress: subscription.wallet_address,
+      registeredAt: subscription.created_at,
+      updatedAt: subscription.updated_at,
     });
-  } catch (err: any) {
-    logger.error('webhook_subscribe_failed', { error: err.message });
+  } catch (error) {
+    if (error instanceof WebhookSubscriptionValidationError) {
+      return NextResponse.json({ error: 'invalid_input', message: error.message }, { status: 400 });
+    }
+    const message = error instanceof Error ? error.message : 'unknown error';
+    logger.error('webhook_subscribe_failed', { error: message });
     return NextResponse.json(
-      { error: 'internal_error', message: 'Failed to create webhook subscription: ' + err.message },
-      { status: 500 }
+      { error: 'persistence_error', message: 'Failed to persist webhook subscription' },
+      { status: 503 }
+    );
+  }
+}
+
+/** List persisted callbacks belonging to the authenticated API-key owner. */
+export async function GET(request: NextRequest) {
+  const userId = request.headers.get('x-solsentry-user-id');
+  if (!userId) {
+    return NextResponse.json({ error: 'unauthorized', message: 'An attributed API key is required' }, { status: 401 });
+  }
+  try {
+    const persistence = getAnomalyPersistence();
+    if (!persistence) {
+      return NextResponse.json(
+        { error: 'service_unavailable', message: 'Webhook persistence is not configured' },
+        { status: 503 }
+      );
+    }
+    const subscriptions = await persistence.listWebhookSubscriptions(userId);
+    return NextResponse.json({ subscriptions });
+  } catch (error) {
+    logger.error('webhook_subscription_list_failed', {
+      error: error instanceof Error ? error.message : 'unknown error',
+      userId,
+    });
+    return NextResponse.json(
+      { error: 'persistence_error', message: 'Failed to list webhook subscriptions' },
+      { status: 503 }
     );
   }
 }

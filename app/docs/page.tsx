@@ -6,6 +6,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Input } from '../../components/ui/Input';
+import { APP_VERSION } from '../../lib/version';
 
 export default function ApiDocsPage() {
   const [selectedLang, setSelectedLang] = useState<'sdk' | 'curl' | 'python' | 'mcp'>('sdk');
@@ -17,7 +18,11 @@ export default function ApiDocsPage() {
     setLoading(true);
     setTestResult(null);
     try {
-      const res = await fetch(`/api/v1/risk-check?protocol=${testProtocol}`);
+      const res = await fetch('/api/v1/risk-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ protocolSlug: testProtocol }),
+      });
       const data = await res.json();
       setTestResult(data);
     } catch (err: any) {
@@ -29,7 +34,7 @@ export default function ApiDocsPage() {
 
   const getCodeSnippet = () => {
     if (selectedLang === 'sdk') {
-      return `import { SolSentryClient } from '@solsentry/sdk';
+      return `import { SolSentryClient } from '@npmsolsentry/sdk';
 
 const client = new SolSentryClient({ apiKey: 'YOUR_API_KEY' });
 
@@ -43,11 +48,12 @@ console.log(sim.drainerScan.isDrainerPattern);`;
     }
     if (selectedLang === 'curl') {
       return `# 1. Protocol Risk Check
-curl -X GET "https://solsentry.io/api/v1/risk-check?protocol=${testProtocol}" \\
-  -H "Authorization: Bearer YOUR_API_KEY"
+curl -X POST "https://solsentry.netlify.app/api/v1/risk-check" \\
+  -H "Content-Type: application/json" \\
+  -d '{"protocolSlug":"${testProtocol}"}'
 
 # 2. Transaction Simulation (x402 Pay-As-You-Go)
-curl -X POST "https://solsentry.io/api/v1/simulate" \\
+curl -X POST "https://solsentry.netlify.app/api/v1/simulate" \\
   -H "Content-Type: application/json" \\
   -H "X-402-Payment: tx_signature..." \\
   -d '{"transaction": "base58_tx_payload..."}'`;
@@ -55,11 +61,10 @@ curl -X POST "https://solsentry.io/api/v1/simulate" \\
     if (selectedLang === 'python') {
       return `import requests
 
-url = "https://solsentry.io/api/v1/risk-check"
-headers = {"Authorization": "Bearer YOUR_API_KEY"}
-params = {"protocol": "${testProtocol}"}
+url = "https://solsentry.netlify.app/api/v1/risk-check"
+payload = {"protocolSlug": "${testProtocol}"}
 
-response = requests.get(url, headers=headers, params=params)
+response = requests.post(url, json=payload)
 data = response.json()
 print("Safety Score:", data["safetyScore"])`;
     }
@@ -68,8 +73,9 @@ print("Safety Score:", data["safetyScore"])`;
   "mcpServers": {
     "solsentry": {
       "command": "npx",
-      "args": ["-y", "@solsentry/mcp-server"],
+      "args": ["-y", "@npmsolsentry/mcp"],
       "env": {
+        "SOLSENTRY_URL": "https://solsentry.netlify.app",
         "SOLSENTRY_API_KEY": "YOUR_API_KEY"
       }
     }
@@ -86,7 +92,7 @@ print("Safety Score:", data["safetyScore"])`;
             <Link href="/dashboard" className="text-cyan-400 font-extrabold text-sm hover:underline">
               ← Back to Dashboard
             </Link>
-            <Badge variant="info">v3.0.0 OpenAPI Spec</Badge>
+            <Badge variant="info">v{APP_VERSION} OpenAPI Spec</Badge>
           </div>
           <h1 className="text-3xl font-extrabold tracking-tight mt-2 text-slate-50">API & MCP Developer Playground</h1>
           <p className="text-sm text-slate-300 mt-1">

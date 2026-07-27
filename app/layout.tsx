@@ -4,7 +4,7 @@ import { WalletContextProvider } from '../components/layout/WalletContextProvide
 import { ServiceWorkerRegister } from '../components/layout/ServiceWorkerRegister';
 import './globals.css';
 
-const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.io';
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.netlify.app';
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

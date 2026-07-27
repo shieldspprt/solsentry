@@ -1,8 +1,8 @@
 # @npmsolsentry/mcp
 
-Model Context Protocol server for [SolSentry](https://solsentry.io). Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk from your agent.
+Model Context Protocol server for [SolSentry](https://solsentry.netlify.app). Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk from your agent.
 
-It is a thin stdio proxy. It holds no keys and runs no engine code. The transport runs locally so your client can add it in one line, while the risk engine, live data grounding, and API keys stay server side.
+It is a thin stdio proxy. It holds no keys and runs no engine code. The transport runs locally so your client can add it in one line, while the risk engine, live data grounding, and API keys stay server side. The package exposes both `solsentry-mcp` and the legacy `npmsolsentry-mcp` binary names.
 
 ## Add to Claude Desktop or Cursor
 
@@ -14,7 +14,7 @@ In `claude_desktop_config.json` (or your Cursor MCP config):
     "solsentry": {
       "command": "npx",
       "args": ["-y", "@npmsolsentry/mcp"],
-      "env": { "SOLSENTRY_URL": "https://solsentry.io" }
+      "env": { "SOLSENTRY_URL": "https://solsentry.netlify.app" }
     }
   }
 }
@@ -40,7 +40,7 @@ Restart the client. Nine `solsentry_*` tools appear, led by `solsentry_guard_tra
 
 | Env var | Default | Purpose |
 | :--- | :--- | :--- |
-| `SOLSENTRY_URL` | `https://solsentry.io` | Point at your own SolSentry instance. |
+| `SOLSENTRY_URL` | `https://solsentry.netlify.app` | Point at your own SolSentry instance. |
 | `SOLSENTRY_API_KEY` | none | Sent as a Bearer token to attribute or authorize calls. |
 | `SOLSENTRY_X402_PAYMENT` | none | Forwarded as the `X-402-Payment` header for metered calls. |
 | `SOLSENTRY_TIMEOUT_MS` | `20000` | Per request timeout. |

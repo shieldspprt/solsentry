@@ -3,7 +3,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
 export default function LandingPage() {
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.io';
+  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://solsentry.netlify.app';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
@@ -122,7 +122,7 @@ export default function LandingPage() {
           <Card padding="md" title="MCP, SDK, CLI, REST">
             <p className="text-sm text-slate-300 leading-relaxed">
               Nine <code>solsentry_*</code> tools over MCP for Claude, Cursor, and any MCP client. A TypeScript SDK
-              (<code>@solsentry/sdk</code>) and CLI (<code>@solsentry/cli</code>) for everything else. One engine, four surfaces.
+              (<code>@npmsolsentry/sdk</code>) and CLI (<code>@npmsolsentry/cli</code>) for everything else. One engine, four surfaces.
             </p>
           </Card>
 

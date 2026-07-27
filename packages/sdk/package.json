@@ -11,7 +11,7 @@
     "mcp"
   ],
   "license": "MIT",
-  "homepage": "https://solsentry.io",
+  "homepage": "https://solsentry.netlify.app",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shieldspprt/solsentry.git",

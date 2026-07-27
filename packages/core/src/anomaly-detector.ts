@@ -43,6 +43,24 @@ export interface OnlineAnomalyDetectorOptions {
   clock?: () => Date;
 }
 
+export interface FeatureBaselineState {
+  values: number[];
+  ewma_mean: number | null;
+  ewma_variance: number | null;
+}
+
+export interface FeedAnomalyDetectorState {
+  previous: OracleAnomalySample | null;
+  baselines: Record<AnomalyFeatureKey, FeatureBaselineState>;
+}
+
+/** JSON-serializable state persisted between serverless invocations. */
+export interface OnlineAnomalyDetectorState {
+  version: 1;
+  saved_at: string;
+  feeds: Record<string, FeedAnomalyDetectorState>;
+}
+
 type Direction = 'high' | 'absolute';
 
 interface FeatureMeta {
@@ -239,6 +257,26 @@ class FeatureBaseline {
       ewmaStdDev: this.ewmaVarianceValue == null ? null : Math.sqrt(Math.max(0, this.ewmaVarianceValue)),
     };
   }
+
+  exportState(): FeatureBaselineState {
+    return {
+      values: [...this.values],
+      ewma_mean: this.ewmaMeanValue,
+      ewma_variance: this.ewmaVarianceValue,
+    };
+  }
+
+  restoreState(state: unknown): void {
+    if (!state || typeof state !== 'object') return;
+    const candidate = state as Partial<FeatureBaselineState>;
+    this.values = Array.isArray(candidate.values)
+      ? candidate.values.filter(isFiniteNumber).slice(-this.windowSize)
+      : [];
+    this.ewmaMeanValue = isFiniteNumber(candidate.ewma_mean) ? candidate.ewma_mean : null;
+    this.ewmaVarianceValue = isFiniteNumber(candidate.ewma_variance) && candidate.ewma_variance >= 0
+      ? candidate.ewma_variance
+      : null;
+  }
 }
 
 interface FeedState {
@@ -278,7 +316,6 @@ export class OnlineAnomalyDetector {
   private readonly stablecoinFeeds: Set<string>;
   private readonly clock: () => Date;
   private readonly feeds = new Map<string, FeedState>();
-  private sequence = 0;
 
   constructor(opts: OnlineAnomalyDetectorOptions = {}) {
     this.windowSize = opts.windowSize ?? DEFAULT_WINDOW_SIZE;
@@ -319,6 +356,11 @@ export class OnlineAnomalyDetector {
       as_of: input.as_of ?? null,
     };
 
+    // Pollers and serverless instances may see the same five-second sample more
+    // than once. Never let duplicates overweight a baseline or emit the same
+    // anomaly repeatedly.
+    if (state.previous?.timestamp === sample.timestamp) return null;
+
     const features = extractOracleAnomalyFeatures(sample, state.previous);
     const contributions = this.scoreFeatures(features, state).sort((a, b) => b.score - a.score);
     const aggregateScore = this.aggregateScore(contributions);
@@ -332,7 +374,56 @@ export class OnlineAnomalyDetector {
 
   reset(): void {
     this.feeds.clear();
-    this.sequence = 0;
+  }
+
+  exportState(): OnlineAnomalyDetectorState {
+    const feeds: Record<string, FeedAnomalyDetectorState> = {};
+    for (const [symbol, state] of this.feeds.entries()) {
+      feeds[symbol] = {
+        previous: state.previous ? { ...state.previous } : null,
+        baselines: FEATURE_KEYS.reduce((acc, key) => {
+          acc[key] = state.baselines[key].exportState();
+          return acc;
+        }, {} as Record<AnomalyFeatureKey, FeatureBaselineState>),
+      };
+    }
+    return { version: 1, saved_at: this.clock().toISOString(), feeds };
+  }
+
+  /**
+   * Restore a trusted-but-runtime-validated JSON snapshot. Invalid feeds or
+   * values are ignored rather than taking the live stream down.
+   */
+  restoreState(snapshot: unknown): boolean {
+    if (!snapshot || typeof snapshot !== 'object') return false;
+    const candidate = snapshot as Partial<OnlineAnomalyDetectorState>;
+    if (candidate.version !== 1 || !candidate.feeds || typeof candidate.feeds !== 'object') return false;
+
+    const restored = new Map<string, FeedState>();
+    for (const [symbol, rawState] of Object.entries(candidate.feeds)) {
+      if (!symbol || !rawState || typeof rawState !== 'object') continue;
+      const stateCandidate = rawState as Partial<FeedAnomalyDetectorState>;
+      const baselines = createBaselines(this.windowSize, this.ewmaAlpha);
+      if (stateCandidate.baselines && typeof stateCandidate.baselines === 'object') {
+        for (const key of FEATURE_KEYS) baselines[key].restoreState(stateCandidate.baselines[key]);
+      }
+
+      const previous = stateCandidate.previous;
+      const validPrevious =
+        previous &&
+        typeof previous === 'object' &&
+        previous.symbol === symbol &&
+        isFiniteNumber(previous.price) &&
+        isFiniteNumber(previous.confidence_bps) &&
+        isFiniteNumber(previous.staleness_ms)
+          ? { ...previous }
+          : null;
+      restored.set(symbol, { previous: validPrevious, baselines });
+    }
+
+    this.feeds.clear();
+    for (const [symbol, state] of restored) this.feeds.set(symbol, state);
+    return true;
   }
 
   private stateFor(symbol: string): FeedState {
@@ -427,10 +518,11 @@ export class OnlineAnomalyDetector {
       observations: this.observationCounts(sample.symbol),
     };
 
-    this.sequence += 1;
-
     return {
-      id: `ano_${sample.symbol.toLowerCase()}_${new Date(timestamp).getTime()}_${this.sequence}`,
+      // The monitor rounds timestamps to its sampling bucket. This ID is stable
+      // across serverless instances, allowing the database to claim an event
+      // once before webhook fanout.
+      id: `ano_${sample.symbol.toLowerCase()}_${new Date(timestamp).getTime()}`,
       type: 'oracle_anomaly',
       feed: sample.symbol,
       severity,

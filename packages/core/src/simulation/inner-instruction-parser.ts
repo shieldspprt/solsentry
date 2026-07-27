@@ -1,4 +1,3 @@
-import { CompiledInnerInstruction, Message, ParsedInnerInstruction, PublicKey } from '@solana/web3.js';
 import bs58 from 'bs58';
 
 export interface HiddenTokenTransfer {
@@ -6,149 +5,158 @@ export interface HiddenTokenTransfer {
   sourceAccount: string;
   destinationAccount: string;
   authorityAccount?: string;
-  amount: number | string; // usually a large number or string of lamports
+  amount: string;
   mint?: string;
-  instructionType: 'transfer' | 'transferChecked' | 'unknown';
+  instructionType: 'transfer' | 'transferChecked';
+  /** Index of the top-level instruction that invoked this CPI transfer. */
+  parentInstructionIndex?: number;
+  /** RPC stack height when available. */
+  stackHeight?: number;
 }
 
-const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
-const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5CGWgPhbxnWALxcfTo5cw4WMm4n';
+interface ParsedTokenInstruction {
+  programId?: { toString(): string } | string;
+  parsed?: {
+    type?: unknown;
+    info?: Record<string, unknown>;
+  };
+  stackHeight?: number | null;
+}
+
+interface CompiledTokenInstruction {
+  programIdIndex?: number;
+  programId?: { toString(): string } | string;
+  accounts?: Array<number | { toString(): string } | string>;
+  data?: string | Uint8Array;
+  stackHeight?: number | null;
+}
+
+interface InnerInstructionGroup {
+  index?: number;
+  instructions?: Array<ParsedTokenInstruction | CompiledTokenInstruction>;
+}
+
+export const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
+export const TOKEN_2022_PROGRAM_ID = 'TokenzQdBNbLqP5CGWgPhbxnWALxcfTo5cw4WMm4n';
+
+function asString(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object' && 'toString' in value) return String(value);
+  return '';
+}
+
+function accountAt(
+  accounts: CompiledTokenInstruction['accounts'],
+  position: number,
+  accountKeys: string[]
+): string {
+  const account = accounts?.[position];
+  if (typeof account === 'number') return accountKeys[account] ?? '';
+  return asString(account);
+}
+
+function programIdFor(ix: CompiledTokenInstruction, accountKeys: string[]): string {
+  if (typeof ix.programIdIndex === 'number') return accountKeys[ix.programIdIndex] ?? '';
+  return asString(ix.programId);
+}
+
+function isTokenProgram(programId: string): boolean {
+  return programId === TOKEN_PROGRAM_ID || programId === TOKEN_2022_PROGRAM_ID;
+}
+
+function amountFromParsedInfo(info: Record<string, unknown>): string {
+  const direct = info.amount;
+  if (typeof direct === 'string' || typeof direct === 'number' || typeof direct === 'bigint') {
+    return String(direct);
+  }
+
+  const tokenAmount = info.tokenAmount;
+  if (tokenAmount && typeof tokenAmount === 'object' && 'amount' in tokenAmount) {
+    const amount = (tokenAmount as { amount?: unknown }).amount;
+    if (typeof amount === 'string' || typeof amount === 'number' || typeof amount === 'bigint') {
+      return String(amount);
+    }
+  }
+  return '0';
+}
 
 /**
- * Parses inner instructions to uncover token movements hidden deep in CPI calls.
+ * Parse SPL Token and Token-2022 transfers performed through CPI calls.
+ *
+ * The RPC can return parsed, partially-decoded, or fully compiled inner
+ * instructions. This function deliberately reports movement only; a CPI token
+ * transfer is normal in swaps, lending, and staking and is not itself evidence
+ * of a drainer. Correlation with authority changes and balance sweeps happens in
+ * the drainer detector.
  */
 export function extractHiddenTokenTransfers(
-  innerInstructions: any[], // ParsedInnerInstruction[] or CompiledInnerInstruction[] depending on RPC
-  accountKeys: string[] // needed if we only get programIdIndex/accounts indices
+  innerInstructions: InnerInstructionGroup[] | null | undefined,
+  accountKeys: string[]
 ): HiddenTokenTransfer[] {
-  if (!innerInstructions || innerInstructions.length === 0) return [];
+  if (!Array.isArray(innerInstructions) || innerInstructions.length === 0) return [];
 
   const transfers: HiddenTokenTransfer[] = [];
 
   for (const inner of innerInstructions) {
-    if (!inner.instructions) continue;
+    if (!Array.isArray(inner.instructions)) continue;
 
-    for (const ix of inner.instructions) {
-      let programId = '';
-      let isTokenProgram = false;
+    for (const instruction of inner.instructions) {
+      if ('parsed' in instruction && instruction.parsed) {
+        const programId = asString(instruction.programId);
+        const type = instruction.parsed.type;
+        const info = instruction.parsed.info;
+        if (!isTokenProgram(programId) || (type !== 'transfer' && type !== 'transferChecked') || !info) continue;
 
-      // Handle jsonParsed instruction format
-      if ('parsed' in ix) {
-        programId = ix.programId?.toString() || '';
-        isTokenProgram = programId === TOKEN_PROGRAM_ID || programId === TOKEN_2022_PROGRAM_ID;
-
-        if (isTokenProgram && ix.parsed && typeof ix.parsed === 'object' && ix.parsed.type) {
-          const type = ix.parsed.type;
-          const info = ix.parsed.info;
-
-          if (type === 'transfer' || type === 'transferChecked') {
-            transfers.push({
-              programId,
-              sourceAccount: info?.source || '',
-              destinationAccount: info?.destination || '',
-              authorityAccount: info?.authority || '',
-              amount: info?.amount || info?.tokenAmount?.amount || '0',
-              mint: info?.mint,
-              instructionType: type
-            });
-          }
-        }
-        continue; // Handled parsed format
+        transfers.push({
+          programId,
+          sourceAccount: asString(info.source),
+          destinationAccount: asString(info.destination),
+          authorityAccount: asString(info.authority) || undefined,
+          amount: amountFromParsedInfo(info),
+          mint: asString(info.mint) || undefined,
+          instructionType: type,
+          parentInstructionIndex: inner.index,
+          stackHeight: instruction.stackHeight ?? undefined,
+        });
+        continue;
       }
 
-      // Handle partially decoded or compiled instruction format
-      if ('programIdIndex' in ix) {
-        programId = accountKeys[ix.programIdIndex] || '';
-      } else if (ix.programId) {
-        programId = ix.programId.toString();
+      const ix = instruction as CompiledTokenInstruction;
+      const programId = programIdFor(ix, accountKeys);
+      if (!isTokenProgram(programId) || !ix.data) continue;
+
+      let rawData: Buffer;
+      try {
+        rawData = typeof ix.data === 'string' ? Buffer.from(bs58.decode(ix.data)) : Buffer.from(ix.data);
+      } catch {
+        continue;
       }
+      if (rawData.length === 0) continue;
 
-      isTokenProgram = programId === TOKEN_PROGRAM_ID || programId === TOKEN_2022_PROGRAM_ID;
-
-      if (isTokenProgram && ix.data) {
-        let rawData: Buffer;
-        if (typeof ix.data === 'string') {
-          try {
-            rawData = Buffer.from(bs58.decode(ix.data));
-          } catch {
-            continue;
-          }
-        } else {
-          rawData = Buffer.from(ix.data); // assume Uint8Array
-        }
-
-        if (rawData.length === 0) continue;
-
-        const ixType = rawData[0];
-        
-        // 3 = Transfer
-        // Layout: [u8, u64] -> length 9
-        if (ixType === 3 && rawData.length >= 9) {
-          const amount = rawData.readBigUInt64LE(1).toString();
-          
-          let sourceAccount = '';
-          let destinationAccount = '';
-          let authorityAccount = '';
-
-          // Find accounts based on format
-          if (ix.accounts && ix.accounts.length >= 3) {
-             // Compiled format using indices
-             if (typeof ix.accounts[0] === 'number') {
-               sourceAccount = accountKeys[ix.accounts[0]] || '';
-               destinationAccount = accountKeys[ix.accounts[1]] || '';
-               authorityAccount = accountKeys[ix.accounts[2]] || '';
-             } else {
-               // PartiallyDecodedInstruction format using pubkeys
-               sourceAccount = ix.accounts[0].toString();
-               destinationAccount = ix.accounts[1].toString();
-               authorityAccount = ix.accounts[2].toString();
-             }
-          }
-
-          transfers.push({
-            programId,
-            sourceAccount,
-            destinationAccount,
-            authorityAccount,
-            amount,
-            instructionType: 'transfer'
-          });
-        }
-        
-        // 12 = TransferChecked
-        // Layout: [u8, u64, u8] -> length 10
-        if (ixType === 12 && rawData.length >= 10) {
-          const amount = rawData.readBigUInt64LE(1).toString();
-          
-          let sourceAccount = '';
-          let mint = '';
-          let destinationAccount = '';
-          let authorityAccount = '';
-
-          if (ix.accounts && ix.accounts.length >= 4) {
-             if (typeof ix.accounts[0] === 'number') {
-               sourceAccount = accountKeys[ix.accounts[0]] || '';
-               mint = accountKeys[ix.accounts[1]] || '';
-               destinationAccount = accountKeys[ix.accounts[2]] || '';
-               authorityAccount = accountKeys[ix.accounts[3]] || '';
-             } else {
-               sourceAccount = ix.accounts[0].toString();
-               mint = ix.accounts[1].toString();
-               destinationAccount = ix.accounts[2].toString();
-               authorityAccount = ix.accounts[3].toString();
-             }
-          }
-
-          transfers.push({
-            programId,
-            sourceAccount,
-            destinationAccount,
-            authorityAccount,
-            mint,
-            amount,
-            instructionType: 'transferChecked'
-          });
-        }
+      const instructionDiscriminator = rawData[0];
+      if (instructionDiscriminator === 3 && rawData.length >= 9) {
+        transfers.push({
+          programId,
+          sourceAccount: accountAt(ix.accounts, 0, accountKeys),
+          destinationAccount: accountAt(ix.accounts, 1, accountKeys),
+          authorityAccount: accountAt(ix.accounts, 2, accountKeys) || undefined,
+          amount: rawData.readBigUInt64LE(1).toString(),
+          instructionType: 'transfer',
+          parentInstructionIndex: inner.index,
+          stackHeight: ix.stackHeight ?? undefined,
+        });
+      } else if (instructionDiscriminator === 12 && rawData.length >= 10) {
+        transfers.push({
+          programId,
+          sourceAccount: accountAt(ix.accounts, 0, accountKeys),
+          mint: accountAt(ix.accounts, 1, accountKeys) || undefined,
+          destinationAccount: accountAt(ix.accounts, 2, accountKeys),
+          authorityAccount: accountAt(ix.accounts, 3, accountKeys) || undefined,
+          amount: rawData.readBigUInt64LE(1).toString(),
+          instructionType: 'transferChecked',
+          parentInstructionIndex: inner.index,
+          stackHeight: ix.stackHeight ?? undefined,
+        });
       }
     }
   }

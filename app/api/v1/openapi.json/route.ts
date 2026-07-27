@@ -75,6 +75,54 @@ export async function GET() {
           },
         },
       },
+      '/api/v1/webhooks/subscribe': {
+        post: {
+          summary: 'Create or update a durable event webhook subscription',
+          operationId: 'subscribeWebhook',
+          security: [{ apiKey: [] }],
+          requestBody: {
+            required: true,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    url: { type: 'string', format: 'uri', example: 'https://alerts.example.com/solsentry' },
+                    events: {
+                      type: 'array',
+                      items: {
+                        type: 'string',
+                        enum: [
+                          'liquidation_risk',
+                          'health_factor_low',
+                          'depeg',
+                          'protocol_exploit',
+                          'oracle_down',
+                          'oracle_anomaly',
+                        ],
+                      },
+                    },
+                    walletAddress: { type: 'string' },
+                    agentId: { type: 'string', format: 'uuid' },
+                    thresholdHf: { type: 'number' },
+                  },
+                  required: ['url'],
+                },
+              },
+            },
+          },
+          responses: {
+            '200': { description: 'Persisted webhook subscription.' },
+            '503': { description: 'Database persistence is not configured or unavailable.' },
+          },
+        },
+        get: {
+          summary: 'List webhook subscriptions for the authenticated API-key owner',
+          operationId: 'listWebhookSubscriptions',
+          security: [{ apiKey: [] }],
+          responses: { '200': { description: 'Persisted subscriptions.' } },
+        },
+      },
       '/api/v1/mcp': {
         post: {
           summary: 'JSON-RPC 2.0 tool execution endpoint for MCP agents',
@@ -82,6 +130,15 @@ export async function GET() {
           responses: {
             '200': { description: 'JSON-RPC 2.0 response with tool output.' },
           },
+        },
+      },
+    },
+    components: {
+      securitySchemes: {
+        apiKey: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'X-SolSentry-API-Key',
         },
       },
     },

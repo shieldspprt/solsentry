@@ -1,5 +1,5 @@
 import { Connection, PublicKey, TransactionSignature } from '@solana/web3.js';
-import { getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+
 
 // USDC Mint on Solana Mainnet
 export const USDC_MINT = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');

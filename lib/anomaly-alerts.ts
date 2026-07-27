@@ -1,5 +1,7 @@
 import { AlertRecord, AnomalyEvent, AlertSeverity } from './types';
+import { AnomalyPersistence, getAnomalyPersistence } from './anomaly-persistence';
 import { logger } from './logger';
+import { isValidWebhookUrl } from './webhook-url';
 
 export interface AnomalyAlertDispatchResult {
   webhook_deliveries: number;
@@ -34,25 +36,22 @@ function configuredWebhookUrls(env: NodeJS.ProcessEnv = process.env): string[] {
   const raw = env.ANOMALY_WEBHOOK_URLS || env.ANOMALY_WEBHOOK_URL || '';
   return raw
     .split(',')
-    .map((s) => s.trim())
+    .map((value) => value.trim())
     .filter(Boolean)
-    .filter((url) => {
-      try {
-        const parsed = new URL(url);
-        if (parsed.username || parsed.password) return false;
-        if (env.NODE_ENV === 'production') return parsed.protocol === 'https:';
-        return parsed.protocol === 'https:' || parsed.protocol === 'http:';
-      } catch {
-        return false;
-      }
-    });
+    .filter((url) => isValidWebhookUrl(url, env.NODE_ENV === 'production'));
 }
 
-async function postWebhook(url: string, event: AnomalyEvent, timeoutMs: number): Promise<boolean> {
+interface PostWebhookResult {
+  ok: boolean;
+  statusCode: number | null;
+  error: string | null;
+}
+
+async function postWebhook(url: string, event: AnomalyEvent, timeoutMs: number): Promise<PostWebhookResult> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -62,25 +61,67 @@ async function postWebhook(url: string, event: AnomalyEvent, timeoutMs: number):
       }),
       signal: controller.signal,
     });
-    return res.ok;
-  } catch {
-    return false;
+    return {
+      ok: response.ok,
+      statusCode: response.status,
+      error: response.ok ? null : `HTTP ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      statusCode: null,
+      error: error instanceof Error ? error.message.slice(0, 500) : 'request failed',
+    };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-// Best-effort optional fanout. SSE/dashboard delivery is the primary path;
-// webhook fanout is enabled only when ANOMALY_WEBHOOK_URL(S) is configured.
+/**
+ * Fan an already-claimed anomaly event out to persisted subscriptions and
+ * optional environment callbacks. The monitor claims the event in Postgres
+ * first, so multiple serverless instances cannot send duplicate deliveries.
+ */
 export async function dispatchAnomalyAlerts(
   event: AnomalyEvent,
-  opts: { timeoutMs?: number; env?: NodeJS.ProcessEnv } = {}
+  opts: { timeoutMs?: number; env?: NodeJS.ProcessEnv; persistence?: AnomalyPersistence | null } = {}
 ): Promise<AnomalyAlertDispatchResult> {
-  const urls = configuredWebhookUrls(opts.env);
+  const env = opts.env ?? process.env;
+  const persistence = opts.persistence === undefined ? getAnomalyPersistence() : opts.persistence;
+  let persistedUrls: string[] = [];
+  if (persistence) {
+    try {
+      persistedUrls = await persistence.listWebhookUrls('oracle_anomaly');
+    } catch (error) {
+      logger.warn('anomaly_webhook_subscription_load_failed', {
+        anomalyId: event.id,
+        error: error instanceof Error ? error.message : 'unknown error',
+      });
+    }
+  }
+
+  const urls = [...new Set([...configuredWebhookUrls(env), ...persistedUrls])].filter((url) =>
+    isValidWebhookUrl(url, env.NODE_ENV === 'production')
+  );
   if (urls.length === 0) return { webhook_deliveries: 0, webhook_failures: 0 };
 
-  const results = await Promise.all(urls.map((url) => postWebhook(url, event, opts.timeoutMs ?? 2500)));
-  const webhookDeliveries = results.filter(Boolean).length;
+  const results = await Promise.all(
+    urls.map(async (url) => {
+      const result = await postWebhook(url, event, opts.timeoutMs ?? 2500);
+      if (persistence) {
+        try {
+          await persistence.recordWebhookDelivery(event.id, url, result);
+        } catch (error) {
+          logger.warn('anomaly_webhook_delivery_record_failed', {
+            anomalyId: event.id,
+            error: error instanceof Error ? error.message : 'unknown error',
+          });
+        }
+      }
+      return result;
+    })
+  );
+  const webhookDeliveries = results.filter((result) => result.ok).length;
   const webhookFailures = results.length - webhookDeliveries;
 
   if (webhookFailures > 0) {

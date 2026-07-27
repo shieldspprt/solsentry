@@ -103,6 +103,30 @@ describe('OnlineAnomalyDetector', () => {
     expect(confidence?.robust_z).toBeGreaterThan(10);
   });
 
+  it('restores rolling baselines after a cold start and ignores duplicate sample buckets', () => {
+    const first = new OnlineAnomalyDetector({ windowSize: 20, minBaselinePoints: 6 });
+    warmStableBaseline(first);
+    const snapshot = first.exportState();
+
+    const restored = new OnlineAnomalyDetector({ windowSize: 20, minBaselinePoints: 6 });
+    expect(restored.restoreState(JSON.parse(JSON.stringify(snapshot)))).toBe(true);
+
+    const anomalySample = sample({
+      price: 0.97,
+      timestamp: '2026-07-27T00:05:00.000Z',
+      as_of: '2026-07-27T00:04:59.000Z',
+    });
+    const event = restored.observe(anomalySample);
+    expect(event?.severity).toBe('critical');
+    expect(event?.id).toBe('ano_usdc_usd_1785110700000');
+
+    const countAfterFirstObservation = restored.exportState().feeds.USDC_USD.baselines.stablecoin_depeg_bps.values.length;
+    expect(restored.observe(anomalySample)).toBeNull();
+    expect(restored.exportState().feeds.USDC_USD.baselines.stablecoin_depeg_bps.values.length).toBe(
+      countAfterFirstObservation
+    );
+  });
+
   it('does not emit on normal jitter and clears after recovery from a stale publish', () => {
     const detector = new OnlineAnomalyDetector({ windowSize: 20, minBaselinePoints: 6 });
     warmStableBaseline(detector);

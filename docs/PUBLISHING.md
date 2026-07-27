@@ -11,21 +11,15 @@ Three packages are published. Everything else in `packages/` is marked
 
 ## One time setup
 
-You need an npm account, and the `@solsentry` scope must belong to you.
+You need an npm account with publish access to the existing `@npmsolsentry` scope.
 
 ```bash
-# 1. Log in (opens a browser for 2FA if enabled)
+# Opens a browser for 2FA if enabled.
 npm login
+npm whoami
 
-# 2. Create the scope as an organization (free for public packages).
-#    Do this once at https://www.npmjs.com/org/create , name it "solsentry".
-#    Or publish under your own user scope by renaming the packages first.
-```
-
-Confirm the scope is free before the first publish:
-
-```bash
-npm view @npmsolsentry/sdk   # should 404 (E404) until you publish
+# Confirm the currently published release before cutting another one.
+npm view @npmsolsentry/sdk version
 ```
 
 ## Publish order
@@ -58,8 +52,8 @@ a stale or missing `dist/` cannot ship.
 Smoke test the published MCP proxy against your hosted instance:
 
 ```bash
-SOLSENTRY_URL=https://solsentry.io npx -y @npmsolsentry/mcp
-# It should print: solsentry mcp proxy connected to https://solsentry.io/api/v1/mcp
+SOLSENTRY_URL=https://solsentry.netlify.app npx -y @npmsolsentry/mcp
+# It should print: solsentry mcp proxy connected to https://solsentry.netlify.app/api/v1/mcp
 # Ctrl-C to exit.
 ```
 
@@ -72,7 +66,7 @@ form instead of a local file path:
     "solsentry": {
       "command": "npx",
       "args": ["-y", "@npmsolsentry/mcp"],
-      "env": { "SOLSENTRY_URL": "https://solsentry.io" }
+      "env": { "SOLSENTRY_URL": "https://solsentry.netlify.app" }
     }
   }
 }
@@ -82,9 +76,11 @@ form instead of a local file path:
 
 Bump all three in lockstep so the CLI's `@npmsolsentry/sdk` range stays satisfied.
 
+Bump each package and lockfile to the same version, then use the checked-in publisher:
+
 ```bash
-npm version patch -w packages/sdk -w packages/mcp -w packages/cli   # if using workspaces
-# or bump each package.json by hand, then publish in the same order.
+./publish.sh --dry-run
+./publish.sh
 ```
 
 ## Notes
@@ -94,6 +90,6 @@ npm version patch -w packages/sdk -w packages/mcp -w packages/cli   # if using w
   without any configuration beyond the URL.
 - The SDK and CLI reach the same hosted API. Reads are public; `guard` and
   `simulate` are metered per call in USDC when the instance has billing on.
-- If you would rather not own the `@solsentry` org, rename the three packages to
-  a scope you control (for example `@yourname/solsentry-mcp`) and update the
-  CLI's dependency on the SDK to match.
+- If the package scope changes, rename all three packages together and update
+  the CLI's dependency on the SDK, the Smithery manifest, and every install
+  example in the same release.
