@@ -99,7 +99,7 @@ export class SolSentryClient {
   private timeoutMs: number;
 
   constructor(opts: SolSentryClientOptions = {}) {
-    this.baseUrl = (opts.baseUrl || 'https://solsentry.io').replace(/\/$/, '');
+    this.baseUrl = (opts.baseUrl || 'https://solsentry.netlify.app').replace(/\/$/, '');
     this.apiKey = opts.apiKey;
     this.timeoutMs = opts.timeoutMs || 5000;
   }

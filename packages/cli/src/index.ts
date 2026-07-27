@@ -13,7 +13,7 @@ program
 // Global options
 program
   .option('-k, --api-key <key>', 'API key for authentication')
-  .option('-e, --endpoint <url>', 'SolSentry API base URL', 'https://solsentry.io')
+  .option('-e, --endpoint <url>', 'SolSentry API base URL', 'https://solsentry.netlify.app')
   .option('-v, --verbose', 'Enable verbose output', false);
 
 // Command: solsentry check <protocol>
