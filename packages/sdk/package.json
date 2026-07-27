@@ -1,6 +1,6 @@
 {
   "name": "@npmsolsentry/sdk",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "TypeScript SDK for SolSentry: guard a Solana transaction before signing, detect wallet drainers, and score protocol risk from live sources.",
   "keywords": [
     "solana",

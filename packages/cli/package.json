@@ -1,6 +1,6 @@
 {
   "name": "@npmsolsentry/cli",
-  "version": "3.1.4",
+  "version": "3.1.5",
   "description": "SolSentry command line tool: guard a Solana transaction before signing, score protocol risk, and check policy from your terminal.",
   "keywords": [
     "solana",
@@ -40,7 +40,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@npmsolsentry/sdk": "^3.1.4",
+    "@npmsolsentry/sdk": "^3.1.5",
     "@solana/web3.js": "^1.95.8",
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
