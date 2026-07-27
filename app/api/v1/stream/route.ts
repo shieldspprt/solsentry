@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { fetchOracleHealth } from '../../../../packages/core/src/data-fetchers/pyth';
-import { PYTH_FEED_IDS } from '../../../../packages/core/src/constants';
+import { OnlineAnomalyDetector } from '../../../../packages/core/src/anomaly-detector';
+import { PYTH_FEED_IDS, STABLECOIN_FEEDS } from '../../../../packages/core/src/constants';
+import { dispatchAnomalyAlerts } from '../../../../lib/anomaly-alerts';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +14,14 @@ export const dynamic = 'force-dynamic';
 const STREAM_FEEDS: Array<keyof typeof PYTH_FEED_IDS> = ['SOL_USD', 'USDC_USD', 'USDT_USD'];
 
 const HEARTBEAT_MS = 5000;
+
+// Module-scoped on purpose: the route keeps an online baseline per hot server
+// instance instead of re-learning from scratch on every SSE client tick.
+const anomalyDetector = new OnlineAnomalyDetector({
+  windowSize: 72,
+  minBaselinePoints: 8,
+  stablecoinFeeds: STABLECOIN_FEEDS,
+});
 
 // A widening confidence interval or a stalled publish is the real early signal
 // of oracle stress. Thresholds match the scorer's health model.
@@ -65,6 +75,7 @@ export async function GET(request: NextRequest) {
             continue;
           }
 
+          const receivedAt = new Date().toISOString();
           const severity = severityFor(health.confidence_bps, health.staleness_ms);
           send('telemetry', {
             type: severity === 'ok' ? 'oracle_heartbeat' : 'oracle_stress',
@@ -76,8 +87,18 @@ export async function GET(request: NextRequest) {
             healthScore: health.health_score,
             severity,
             asOf: health.as_of,
-            timestamp: new Date().toISOString(),
+            timestamp: receivedAt,
           });
+
+          const anomaly = anomalyDetector.observeOracleHealth(health, {
+            source: 'pyth:hermes',
+            receivedAt,
+            stablecoin: STABLECOIN_FEEDS.includes(symbol),
+          });
+          if (anomaly) {
+            send('anomaly', anomaly);
+            void dispatchAnomalyAlerts(anomaly);
+          }
         }
       };
 

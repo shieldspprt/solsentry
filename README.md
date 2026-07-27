@@ -353,15 +353,21 @@ curl -X POST https://solsentry.io/api/v1/risk-check \
   -d '{"protocolSlug": "jupiter"}'
 
 # Read wallet positions
-curl -X POST https://solsentry.io/api/v1/positions/read \
-  -H "Content-Type: application/json" \
-  -d '{"wallet": "7xK9vW2zL..."}'
+curl "https://solsentry.io/api/v1/positions/read?wallet=7xK9vW2zL..."
+
+# Stream oracle telemetry + anomaly events (SSE)
+curl -N https://solsentry.io/api/v1/stream
 
 # Stress test a wallet
 curl -X POST https://solsentry.io/api/v1/stress-test \
   -H "Content-Type: application/json" \
   -d '{"wallet": "7xK9vW2zL...", "shockPct": 30}'
 ```
+
+The `/api/v1/stream` SSE feed emits two event families:
+
+- `event: telemetry` — raw Pyth Hermes price, confidence interval, staleness, and health score.
+- `event: anomaly` — explainable online anomaly events from a per-feed rolling median/MAD + EWMA baseline over price returns, confidence-band expansion, oracle staleness, slot lag, and stablecoin de-peg deviation. Each event includes severity, score, feature contributions, baseline-window counts, timestamp, and source provenance.
 
 ### 7. CLI in CI/CD or Scripts
 
@@ -385,6 +391,7 @@ echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
 | `SOLSENTRY_TIMEOUT_MS` | No | `20000` | Request timeout in milliseconds |
 | `SOLSENTRY_X402_PAYMENT` | No | — | x402 payment header for pay-per-call (USDC) |
 | `NEXT_PUBLIC_SOLANA_WS_URL` | No | derived from `NEXT_PUBLIC_HELIUS_RPC_URL` | Browser WebSocket RPC used for the dashboard's `slotSubscribe` network-health stream. Use a public RPC URL only; no wallet data is sent. |
+| `ANOMALY_WEBHOOK_URLS` | No | — | Optional comma-separated HTTP(S) webhook fanout for `oracle_anomaly` events emitted by `/api/v1/stream`. HTTPS is enforced in production. |
 
 ---
 

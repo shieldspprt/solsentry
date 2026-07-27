@@ -63,6 +63,18 @@ export async function GET() {
           },
         },
       },
+      '/api/v1/stream': {
+        get: {
+          summary: 'SSE stream for live oracle telemetry and anomaly events',
+          operationId: 'streamOracleTelemetry',
+          responses: {
+            '200': {
+              description:
+                'text/event-stream feed with telemetry heartbeats and oracle_anomaly events scored by an online rolling median/MAD + EWMA detector.',
+            },
+          },
+        },
+      },
       '/api/v1/mcp': {
         post: {
           summary: 'JSON-RPC 2.0 tool execution endpoint for MCP agents',

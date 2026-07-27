@@ -3,7 +3,7 @@ import { logger } from '../../../../../lib/logger';
 
 export interface WebhookSubscriptionRequest {
   url: string;
-  events: Array<'liquidation_risk' | 'health_factor_low' | 'depeg' | 'protocol_exploit' | 'oracle_down'>;
+  events: Array<'liquidation_risk' | 'health_factor_low' | 'depeg' | 'protocol_exploit' | 'oracle_down' | 'oracle_anomaly'>;
   walletAddress?: string;
   agentId?: string;
   thresholdHf?: number;
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const events = Array.isArray(body.events) && body.events.length > 0 ? body.events : ['liquidation_risk', 'depeg'];
+    const events = Array.isArray(body.events) && body.events.length > 0 ? body.events : ['liquidation_risk', 'depeg', 'oracle_anomaly'];
     const subscriptionId = `sub_${Math.random().toString(36).substring(2, 10)}${Date.now().toString(36)}`;
 
     logger.info('webhook_subscribed', {
