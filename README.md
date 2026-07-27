@@ -6,10 +6,12 @@
 
 [![Model Version](https://img.shields.io/badge/model-v3.1-cyan.svg?style=for-the-badge)](packages/core/src/risk-scorer.ts)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![MCP Ready](https://img.shields.io/badge/MCP-9%20tools-purple.svg?style=for-the-badge)](packages/mcp-server)
+[![MCP Ready](https://img.shields.io/badge/MCP-9%20tools-purple.svg?style=for-the-badge)](packages/mcp)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](LICENSE)
+[![npm](https://img.shields.io/badge/npm-%40npmsolsentry%2Fmcp-red.svg?style=for-the-badge&logo=npm)](https://www.npmjs.com/package/@npmsolsentry/mcp)
+[![Smithery](https://img.shields.io/badge/Smithery-verified-purple.svg?style=for-the-badge)](https://smithery.ai/server/@npmsolsentry/mcp)
 
-[Live Dashboard](https://solsentry.io/dashboard) &nbsp;·&nbsp; [API &amp; SDK Playground](https://solsentry.io/docs) &nbsp;·&nbsp; [OpenAPI Spec](https://solsentry.io/api/v1/openapi.json) &nbsp;·&nbsp; [Data Integrity Audit](docs/DATA_INTEGRITY_AUDIT.md)
+[Live Dashboard](https://solsentry.io/dashboard) &nbsp;·&nbsp; [API & SDK Playground](https://solsentry.io/docs) &nbsp;·&nbsp; [OpenAPI Spec](https://solsentry.io/api/v1/openapi.json) &nbsp;·&nbsp; [Data Integrity Audit](docs/DATA_INTEGRITY_AUDIT.md)
 
 </div>
 
@@ -67,9 +69,9 @@ Eight factors. An unmeasured factor returns `score: null`, `source: "unmeasured"
 | Factor | Weight | Source | Status |
 | :--- | :--- | :--- | :--- |
 | Exploit History | 25% | DeFiLlama hacks dataset | Measured. Realized losses, decayed by age. Can force a `block` verdict on its own. |
-| Audit &amp; Governance | 15% | Protocol registry and published governance docs | Measured. |
-| Liquidity &amp; Liquidation | 15% | Kamino market utilization | Measured for lending markets (borrowed over supplied liquidity). Not applicable to protocols with no borrow book. |
-| Oracle Health &amp; Depeg | 15% | Pyth Hermes, per protocol | Measured. Scores the weakest feed a protocol's solvency depends on, plus stablecoin deviation from one dollar. |
+| Audit & Governance | 15% | Protocol registry and published governance docs | Measured. |
+| Liquidity & Liquidation | 15% | Kamino market utilization | Measured for lending markets (borrowed over supplied liquidity). Not applicable to protocols with no borrow book. |
+| Oracle Health & Depeg | 15% | Pyth Hermes, per protocol | Measured. Scores the weakest feed a protocol's solvency depends on, plus stablecoin deviation from one dollar. |
 | Whale Concentration | 10% | Helius, with Jupiter as fallback | Measured. Top holder share of token supply. |
 | Market Integrity | 10% | Jupiter Token API | Measured. The governance token's market: organic versus bot and arbitrage volume, plus mint and freeze authority status. A proxy for manipulation and dump risk, not for sandwich risk on a swap. |
 | Developer Activity | 5% | GitHub REST API | Measured. Scores abandonment, not commit volume. Set `GITHUB_TOKEN` to raise the rate limit. |
@@ -134,23 +136,254 @@ solsentry policy swap jupiter 5000
 
 ### Model Context Protocol (MCP)
 
-SolSentry exposes nine `solsentry_*` tools over stdio or HTTP at `/api/v1/mcp`. Add it to `claude_desktop_config.json` or your Cursor configuration:
+SolSentry exposes nine `solsentry_*` tools over stdio via the published `@npmsolsentry/mcp` package. The package is a thin proxy that forwards calls to the hosted SolSentry engine (`https://solsentry.io/api/v1/mcp`), so it holds no keys and runs no engine code locally.
+
+#### Quick install (Claude Desktop, Cursor, any MCP client)
+
+**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
   "mcpServers": {
     "solsentry": {
-      "command": "node",
-      "args": ["/path/to/solsentry/packages/mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "@npmsolsentry/mcp"],
       "env": {
-        "NEXT_PUBLIC_SUPABASE_URL": "https://your_project.supabase.co",
-        "SUPABASE_SERVICE_ROLE_KEY": "your_service_role_key",
-        "HELIUS_RPC_URL": "https://mainnet.helius-rpc.com/?api-key=your_key"
+        "SOLSENTRY_URL": "https://solsentry.io",
+        "SOLSENTRY_API_KEY": "your_api_key_optional"
       }
     }
   }
 }
 ```
+
+**Cursor** — `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "solsentry": {
+      "command": "npx",
+      "args": ["-y", "@npmsolsentry/mcp"],
+      "env": {
+        "SOLSENTRY_URL": "https://solsentry.io"
+      }
+    }
+  }
+}
+```
+
+**Any stdio MCP client** — run directly:
+
+```bash
+npx -y @npmsolsentry/mcp
+```
+
+#### Available tools (proxied from hosted engine)
+
+| Tool | Description |
+|------|-------------|
+| `solsentry_guard_transaction` | Simulate a transaction, scan for drainers, apply protocol risk + policy guardrails. Returns `SIGN` / `DO_NOT_SIGN` verdict with reasons. |
+| `solsentry_simulate_transaction` | Dry-run simulation only: balance deltas, compute units, instruction breakdown. |
+| `solsentry_score_protocol` | Full 8-factor risk score for a protocol slug (e.g., `kamino`, `jupiter`, `drift`). |
+| `solsentry_read_positions` | Read on-chain positions for a wallet (Kamino obligations, Drift perp positions). |
+| `solsentry_stress_test` | Apply adverse price shocks to a wallet's positions; report liquidations and capital at risk. |
+| `solsentry_policy_evaluate` | Check an intended action (swap, borrow, lend, stake) against policy guardrails for a given USD size. |
+| `solsentry_check_wallet_approvals` | List all token/SPL approvals for a wallet with risk flags. |
+| `solsentry_revoke_approvals` | Build revoke transactions for flagged approvals. |
+| `solsentry_get_protocol_registry` | List all tracked protocols with metadata and current risk tier. |
+
+---
+
+## Concrete Agent Usage Patterns
+
+These are copy-paste ready patterns for the most common agent frameworks. Each shows the *exact* call sequence an autonomous agent should use before signing any Solana transaction.
+
+### 1. Vercel AI SDK (Node/Next.js)
+
+```ts
+import { SolSentryClient } from '@npmsolsentry/sdk';
+import { tool } from 'ai';
+import { z } from 'zod';
+
+const sentry = new SolSentryClient({ baseUrl: 'https://solsentry.io' });
+
+const guardTx = tool({
+  description: 'Simulate and risk-check a Solana transaction before signing',
+  parameters: z.object({
+    txBase58: z.string(),
+    protocolSlug: z.string().optional(),
+    action: z.enum(['swap','borrow','lend','stake','unstake','provide','withdraw']).optional(),
+    amountUsd: z.number().optional(),
+  }),
+  execute: async ({ txBase58, protocolSlug, action, amountUsd }) => {
+    const verdict = await sentry.guard({ transaction: txBase58, protocolSlug, action, amountUsd });
+    if (!verdict.proceed) {
+      throw new Error(`BLOCKED: ${verdict.blockingReasons.join('; ')}`);
+    }
+    return { proceed: true, riskScore: verdict.riskScore, factors: verdict.factors };
+  },
+});
+
+// Agent usage:
+// await agent.generate({ tools: { guardTx }, prompt: 'User wants to swap 5000 USDC on Jupiter. Here is the serialized tx: <tx>...' });
+```
+
+### 2. LangChain / LangGraph (Python)
+
+```python
+from langchain_core.tools import tool
+from pydantic import BaseModel
+import httpx
+
+SENTRY_URL = "https://solsentry.io/api/v1/guard"
+
+class GuardInput(BaseModel):
+    transaction: str          # base58 or base64
+    protocol_slug: str | None = None
+    action: str | None = None
+    amount_usd: float | None = None
+
+@tool("guard_solana_transaction")
+async def guard_transaction(input: GuardInput) -> dict:
+    """Simulate and risk-check a Solana transaction before signing. Returns verdict + reasons."""
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.post(SENTRY_URL, json=input.model_dump(exclude_none=True))
+        resp.raise_for_status()
+        data = resp.json()
+        if not data.get("proceed"):
+            raise RuntimeError(f"BLOCKED: {data.get('blockingReasons', ['unknown'])}")
+        return data
+
+# In a LangGraph node:
+# async def check_tx(state):
+#     result = await guard_transaction.ainvoke(state["tx_payload"])
+#     return {**state, "guard_result": result}
+```
+
+### 3. CrewAI (Python)
+
+```python
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
+import httpx
+
+class GuardTransactionTool(BaseTool):
+    name: str = "SolSentry Transaction Guard"
+    description: str = "Simulate a Solana transaction, detect drainers, and apply protocol risk + policy guardrails. Call this BEFORE signing any transaction."
+    
+    def _run(self, tx_base58: str, protocol_slug: str = None, action: str = None, amount_usd: float = None) -> str:
+        payload = {"transaction": tx_base58}
+        if protocol_slug: payload["protocolSlug"] = protocol_slug
+        if action: payload["action"] = action
+        if amount_usd: payload["amountUsd"] = amount_usd
+        
+        resp = httpx.post("https://solsentry.io/api/v1/guard", json=payload, timeout=20)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        if not data.get("proceed"):
+            return f"BLOCKED — {', '.join(data.get('blockingReasons', ['unknown']))}"
+        return f"SAFE — Risk score: {data.get('riskScore', 'N/A')}, Coverage: {data.get('factorCoverage', {}).get('measuredPct', 'N/A')}%"
+
+# Agent usage:
+# trading_agent = Agent(
+#     role="Solana Trader",
+#     tools=[GuardTransactionTool()],
+#     system_prompt="Never sign a transaction without calling GuardTransactionTool first."
+# )
+```
+
+### 4. AutoGen (Python)
+
+```python
+import json
+from autogen import AssistantAgent, UserProxyAgent
+import httpx
+
+def guard_transaction(tx_base58: str, protocol_slug: str = None, action: str = None, amount_usd: float = None) -> str:
+    payload = {"transaction": tx_base58}
+    if protocol_slug: payload["protocolSlug"] = protocol_slug
+    if action: payload["action"] = action
+    if amount_usd: payload["amountUsd"] = amount_usd
+    
+    r = httpx.post("https://solsentry.io/api/v1/guard", json=payload, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    
+    if not data.get("proceed"):
+        return json.dumps({"allowed": False, "reasons": data.get("blockingReasons")})
+    return json.dumps({"allowed": True, "riskScore": data.get("riskScore"), "factors": data.get("factors")})
+
+# Register as a function tool:
+# trading_assistant = AssistantAgent(
+#     name="Trader",
+#     system_message="You are a Solana trading agent. ALWAYS call guard_transaction before signing.",
+#     function_map={"guard_transaction": guard_transaction},
+# )
+```
+
+### 5. MCP-based Agents (Claude, Cursor, Continue, etc.)
+
+**Prompt pattern for any MCP-enabled agent:**
+
+> "Before you sign or broadcast this transaction, call `solsentry_guard_transaction` with the serialized transaction (base58), the protocol slug if known, the action type, and the USD amount. If the verdict is `DO_NOT_SIGN`, do not proceed — explain the blocking reasons to the user."
+
+**Example conversation:**
+
+```
+User: I want to borrow 5000 USDC against my SOL on Kamino. Here's the unsigned tx: 3s8xK9vW2zL...
+
+Agent: [calls solsentry_guard_transaction with tx, protocolSlug="kamino", action="borrow", amountUsd=5000]
+
+Agent: Verdict: DO_NOT_SIGN. Blocking reasons: ["Protocol Kamino has exploit gate: $295M loss < 180 days ago", "Liquidity utilization 94% — liquidation risk high"]. I cannot sign this transaction.
+```
+
+### 6. REST API (Direct HTTP — works everywhere)
+
+```bash
+# Guard a transaction
+curl -X POST https://solsentry.io/api/v1/guard \
+  -H "Content-Type: application/json" \
+  -d '{"transaction": "3s8xK9vW2zL...", "protocolSlug": "kamino", "action": "borrow", "amountUsd": 5000}'
+
+# Score a protocol
+curl -X POST https://solsentry.io/api/v1/risk-check \
+  -H "Content-Type: application/json" \
+  -d '{"protocolSlug": "jupiter"}'
+
+# Read wallet positions
+curl -X POST https://solsentry.io/api/v1/positions/read \
+  -H "Content-Type: application/json" \
+  -d '{"wallet": "7xK9vW2zL..."}'
+
+# Stress test a wallet
+curl -X POST https://solsentry.io/api/v1/stress-test \
+  -H "Content-Type: application/json" \
+  -d '{"wallet": "7xK9vW2zL...", "shockPct": 30}'
+```
+
+### 7. CLI in CI/CD or Scripts
+
+```bash
+# In a deployment pipeline — fail if risk is too high
+solsentry check kamino --json | jq -r '.verdict' | grep -q '^block$' && exit 1
+
+# Pre-sign check in a script
+guard_output=$(solsentry simulate "$TX_BASE58" --json)
+echo "$guard_output" | jq -e '.drainerDetected == false' || exit 1
+```
+
+---
+
+## Configuration
+
+| Env var | Required | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `SOLSENTRY_URL` | No | `https://solsentry.io` | Base URL of the SolSentry HTTP API |
+| `SOLSENTRY_API_KEY` | No | — | API key for authenticated/metered calls |
+| `SOLSENTRY_TIMEOUT_MS` | No | `20000` | Request timeout in milliseconds |
+| `SOLSENTRY_X402_PAYMENT` | No | — | x402 payment header for pay-per-call (USDC) |
 
 ---
 
@@ -166,7 +399,8 @@ solsentry/
     sdk/              TypeScript client (@npmsolsentry/sdk)
     cli/              Developer CLI (@npmsolsentry/cli)
     payment/          x402 USDC micropayment verifier (@npmsolsentry/payment)
-    mcp-server/       Model Context Protocol server
+    mcp/              Published MCP stdio proxy (@npmsolsentry/mcp)
+    mcp-server/       Internal MCP server (consumed in-process by Next.js)
   lib/                Shared auth, security, cache, and logging utilities
   sql/                PostgreSQL schema and row level security policies
 ```
@@ -192,8 +426,21 @@ npm run build
 
 ---
 
+## Publishing to Smithery
+
+The `mcp.json` at the repo root is the Smithery manifest. To publish:
+
+1. Ensure `@npmsolsentry/mcp` is published to npm (already done: v3.1.1)
+2. Push `mcp.json` to the GitHub repo
+3. Submit at https://smithery.ai/new — point to `https://github.com/shieldspprt/solsentry`
+4. Smithery reads `mcp.json`, builds the Docker image, and lists it in the registry
+
+The package uses the Smithery-recommended pattern: a thin `npx` proxy that forwards to a hosted engine. This keeps the install fast, the attack surface small, and the risk model always current.
+
+---
+
 ## License
 
 Distributed under the MIT License. See [`LICENSE`](LICENSE) for details.
 
-Copyright (c) 2026 SolSentry.
+Copyright (c) 2026 NPMSolSentry.

@@ -1,0 +1,212 @@
+{
+  "$schema": "https://smithery.ai/schemas/mcp.json",
+  "name": "@npmsolsentry/mcp",
+  "version": "3.1.1",
+  "description": "Model Context Protocol server for SolSentry. Add it to Claude, Cursor, or any MCP client to guard Solana transactions and score protocol risk. Thin stdio proxy; holds no keys.",
+  "repository": {
+    "url": "https://github.com/shieldspprt/solsentry",
+    "directory": "packages/mcp"
+  },
+  "homepage": "https://solsentry.io",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "solana",
+    "ai-agents",
+    "claude",
+    "cursor",
+    "transaction-simulation",
+    "wallet-drainer"
+  ],
+  "command": "npx",
+  "args": ["-y", "@npmsolsentry/mcp"],
+  "env": {
+    "SOLSENTRY_URL": {
+      "type": "string",
+      "description": "Base URL of the SolSentry engine (default: https://solsentry.io)",
+      "default": "https://solsentry.io",
+      "required": false
+    },
+    "SOLSENTRY_API_KEY": {
+      "type": "string",
+      "description": "API key for authenticated requests to the SolSentry engine (optional)",
+      "required": false,
+      "secret": true
+    },
+    "SOLSENTRY_TIMEOUT_MS": {
+      "type": "number",
+      "description": "Request timeout in milliseconds (default: 20000)",
+      "default": 20000,
+      "required": false
+    }
+  },
+  "tools": [
+    {
+      "name": "solsentry_guard_transaction",
+      "description": "Simulate a transaction, scan for drainers, apply protocol risk + policy guardrails. Returns SIGN / DO_NOT_SIGN verdict with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "type": "string",
+            "description": "Serialized Solana transaction (base58 or base64)"
+          },
+          "protocolSlug": {
+            "type": "string",
+            "description": "Protocol slug to fold in protocol risk and policy (e.g., 'kamino', 'jupiter', 'drift')",
+            "optional": true
+          },
+          "action": {
+            "type": "string",
+            "enum": ["swap", "borrow", "lend", "stake", "unstake", "provide", "withdraw"],
+            "description": "Action type for policy guardrail evaluation",
+            "optional": true
+          },
+          "amountUsd": {
+            "type": "number",
+            "description": "USD amount for policy evaluation",
+            "optional": true
+          }
+        },
+        "required": ["transaction"]
+      }
+    },
+    {
+      "name": "solsentry_simulate_transaction",
+      "description": "Dry-run simulation only: balance deltas, compute units, instruction breakdown.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "type": "string",
+            "description": "Serialized Solana transaction (base58 or base64)"
+          },
+          "encoding": {
+            "type": "string",
+            "enum": ["base58", "base64"],
+            "description": "Transaction encoding",
+            "default": "base58"
+          }
+        },
+        "required": ["transaction"]
+      }
+    },
+    {
+      "name": "solsentry_score_protocol",
+      "description": "Full 8-factor risk score for a protocol slug (e.g., 'kamino', 'jupiter', 'drift').",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "protocolSlug": {
+            "type": "string",
+            "description": "Protocol slug from the registry"
+          },
+          "details": {
+            "type": "boolean",
+            "description": "Include full factor breakdown",
+            "default": false
+          }
+        },
+        "required": ["protocolSlug"]
+      }
+    },
+    {
+      "name": "solsentry_read_positions",
+      "description": "Read on-chain positions for a wallet (Kamino obligations, Drift perp positions).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "description": "Wallet address (base58)"
+          }
+        },
+        "required": ["wallet"]
+      }
+    },
+    {
+      "name": "solsentry_stress_test",
+      "description": "Apply adverse price shocks to a wallet's positions; report liquidations and capital at risk.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "description": "Wallet address (base58)"
+          },
+          "shockPct": {
+            "type": "number",
+            "description": "Adverse price shock percentage (default: 30)",
+            "default": 30
+          }
+        },
+        "required": ["wallet"]
+      }
+    },
+    {
+      "name": "solsentry_policy_evaluate",
+      "description": "Check an intended action (swap, borrow, lend, stake) against policy guardrails for a given USD size.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "protocolSlug": {
+            "type": "string",
+            "description": "Protocol slug"
+          },
+          "action": {
+            "type": "string",
+            "enum": ["swap", "borrow", "lend", "stake", "unstake", "provide", "withdraw"],
+            "description": "Action type"
+          },
+          "amountUsd": {
+            "type": "number",
+            "description": "USD amount"
+          }
+        },
+        "required": ["protocolSlug", "action", "amountUsd"]
+      }
+    },
+    {
+      "name": "solsentry_check_wallet_approvals",
+      "description": "List all token/SPL approvals for a wallet with risk flags.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "description": "Wallet address (base58)"
+          }
+        },
+        "required": ["wallet"]
+      }
+    },
+    {
+      "name": "solsentry_revoke_approvals",
+      "description": "Build revoke transactions for flagged approvals.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "description": "Wallet address (base58)"
+          },
+          "approvalAddresses": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Token account addresses to revoke"
+          }
+        },
+        "required": ["wallet", "approvalAddresses"]
+      }
+    },
+    {
+      "name": "solsentry_get_protocol_registry",
+      "description": "List all tracked protocols with metadata and current risk tier.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
