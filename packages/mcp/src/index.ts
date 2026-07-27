@@ -19,7 +19,7 @@
  *       "solsentry": {
  *         "command": "npx",
  *         "args": ["-y", "@npmsolsentry/mcp"],
- *         "env": { "SOLSENTRY_URL": "https://solsentry.io" }
+ *         "env": { "SOLSENTRY_URL": "https://solsentry.netlify.app" }
  *       }
  *     }
  *   }
@@ -32,7 +32,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-const BASE_URL = (process.env.SOLSENTRY_URL || 'https://solsentry.io').replace(/\/$/, '');
+const BASE_URL = (process.env.SOLSENTRY_URL || 'https://solsentry.netlify.app').replace(/\/$/, '');
 const MCP_ENDPOINT = `${BASE_URL}/api/v1/mcp`;
 const API_KEY = process.env.SOLSENTRY_API_KEY;
 const REQUEST_TIMEOUT_MS = Number(process.env.SOLSENTRY_TIMEOUT_MS || 20000);
@@ -75,7 +75,7 @@ async function callHosted(method: string, params?: unknown): Promise<any> {
 }
 
 const server = new Server(
-  { name: 'solsentry', version: '3.1.0' },
+  { name: 'solsentry', version: '3.1.3' },
   { capabilities: { tools: {} } }
 );
 
